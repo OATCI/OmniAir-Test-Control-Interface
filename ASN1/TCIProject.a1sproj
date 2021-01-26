@@ -1,0 +1,41 @@
+<OssGuiProject version="2.0" product="ASN.1 Studio" productVersion="9.0.1">
+ <Asn1Files>
+  <File>TCIDispatcher.asn</File>
+  <File>TCI29451.asn</File>
+  <File>TCI16094.asn</File>
+  <File>TCI80211.asn</File>
+  <File>TCISutControl.asn</File>
+  <File>TCIresponseInfo.asn</File>
+  <File>TCIindication.asn</File>
+  <File>TCIip.asn</File>
+  <File>TCIwsm.asn</File>
+  <File>TCIEventHandling.asn</File>
+  <File>TCICommonTypes.asn</File>
+  <File>1609dot3/17419_CITSapplMgmtIDs_v1.asn</File>
+  <File>1609dot3/wee.asn</File>
+  <File>1609dot3/wsa.asn</File>
+  <File>TCI16093DSRC.asn</File>
+  <File>TCI16093PC5.asn</File>
+  <File>TCIproxyCv2x.asn</File>
+  <File>1609dot3/EUTRA-RRC-Definitions.asn</File>
+  <File>1609dot3/EUTRA-Sidelink-Preconf.asn</File>
+  <File>TCI31611.asn</File>
+ </Asn1Files>
+ <CompilerSettings/>
+ <EncodingFiles>
+  <File pduName="TCIMsg" encRule="ASN.1 Value Notation">TCI-dot3-req-Dot3SetWsmTxInfo.txt</File>
+ </EncodingFiles>
+ <Settings>
+  <Setting present="false" name="-noRelaxedMode"/>
+  <Setting name="-oer"/>
+  <Setting name="-root"/>
+  <Setting name="AUTOMATIC_ENCDEC"/>
+  <Setting name="Additional Options">-warningMessages -noRelaxedMode</Setting>
+  <Setting name="DEBUGPDU"/>
+  <Setting name="OSS_AUTO_ENCODE_WITHOUT_CHECKING_CONSTRAINT"/>
+  <Setting name="OSS_HEXBYTES"/>
+  <Setting name="OSS_PRINT_COMMENTS"/>
+  <Setting name="OSS_PRINT_OFFSET"/>
+  <Setting name="OSS_PRINT_TYPE_INFO"/>
+ </Settings>
+</OssGuiProject>

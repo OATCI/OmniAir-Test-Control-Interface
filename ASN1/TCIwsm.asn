@@ -1,0 +1,260 @@
+TCI-wsm
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IMPORTS
+AdvertiserIdentifier,
+ProviderServiceContext,
+Extension,
+MACaddress,
+DataRate80211,
+TXpower80211,
+ChannelNumber80211  FROM IEEE-1609-3-WEE {iso(1) identified-organization(3) ieee(111) standards-association-numbered-series-standards(2) wave-stds(1609) dot3(3) wee(1) version0(0)}
+
+ServiceInfos,
+SrvAdvMsgHeaderExts,
+ChannelInfos,
+RoutingAdvertisement FROM IEEE-1609-3-WSA {iso(1) identified-organization(3) ieee(111) standards-association-numbered-series-standards(2) wave-stds(1609) dot3(3) wsa(3) version0(0)}
+
+PduData,
+PduType,
+TimeSlot,
+RepeatRate,
+UserPriority,
+Opaque,
+HashedId8,
+RadioInterface,
+Psid,
+Time64 FROM TCI-CommonTypes
+
+FlowIdentifier FROM TCI-16093-PC5
+
+EventHandling FROM TCI-eventHandling --used in StartWsmRx
+;
+
+/*
+    Request Messages
+*/
+
+SetInitialState ::= BOOLEAN (TRUE)
+
+SetWsmTxInfo ::= SEQUENCE{      -- handled through WSM-WaveShortMessage.request, WME-ChannelService.request
+    psid                    Psid,
+    radio                   RadioInterface,
+    security                SecurityContext,
+    transmitPowerLevel      TXpower80211  OPTIONAL,
+    infoElementsIncluded    WaveElementsIncluded DEFAULT '000000000000000000000000'B, -- default no WAVE Extension Info elements included
+    userPriority            UserPriority OPTIONAL,
+    channelIdentifier       ChannelNumber80211 OPTIONAL,
+    dataRate                DataRate80211 OPTIONAL,
+    timeslot                TimeSlot OPTIONAL,
+    repeatRate              RepeatRate  OPTIONAL, -- when set to 0 - one shot message, otherwise periodic with RepeatRate per 1609.3
+    destinationMACAddr      MACaddress  OPTIONAL,
+    channelLoad             Opaque OPTIONAL,
+    expiryTime              Time64 OPTIONAL,
+    payload                 Opaque OPTIONAL,
+    ...,
+--    txPoolId                TxPoolId OPTIONAL               Tx Pool identifier
+    flowId                  FlowIdentifier  OPTIONAL       -- Defines flow parameters via SetFlowConfig
+
+}
+
+
+-- For sending WSMs use SetWsmTxInfo, then StartWsmTx
+-- For sending WSAs use StartWsaTxPerdiodic
+
+StartWsmTx ::= SEQUENCE{  -- handled through WSM-WaveShortMessage.request
+    psid            Psid,
+    radio           RadioInterface,
+    repeatRate      RepeatRate OPTIONAL, -- when set to 0 - one shot message, otherwise periodic with RepeatRate per 1609.3, not used for StartBsmTx
+    payload         Opaque OPTIONAL,
+    ...
+}
+
+StopWsmTx ::= SEQUENCE{
+    psid        Psid,
+    radio       RadioInterface,
+    ...
+}
+
+StartWsmRx ::= SEQUENCE{    -- request to received WSM with matched PSIDs and provide indications
+    psid                Psid OPTIONAL, -- PSID is optional if eventHandling.rxFlag is set to receive any WSM with PSID
+    radio               RadioInterface,
+    channelIdentifier   ChannelNumber80211 OPTIONAL, -- not used for LteV2X
+    timeSlot            TimeSlot OPTIONAL,           -- not used for LteV2X
+    eventHandling       EventHandling,
+    ...,
+    destinationMACAddr  MACaddress  OPTIONAL,              -- L2 destination addr to be subscribed to or use wildcard (if not specified) - used for LteV2X
+    pduFilter           OCTET STRING(SIZE(0..4)) OPTIONAL, -- unique octets to be included at the beginning of payload and be used for packet filtering
+    ssp                 SecurityPermission OPTIONAL
+}
+
+StopWsmRx ::= SEQUENCE{
+    psid        Psid OPTIONAL,
+    radio       RadioInterface,
+    ...
+}
+
+StartWsaTxPerdiodic ::= SEQUENCE{   -- creates WSA with one or more PSIDs via WME-ProviderService.request
+    radio                   RadioInterface,
+    destinationMACAddr      MACaddress  OPTIONAL,
+    wsaChannelIdentifier    ChannelNumber80211 OPTIONAL,
+    channelAccess           TimeSlot OPTIONAL,
+    repeatRate              RepeatRate OPTIONAL,
+    ipService               BOOLEAN,  -- used for WME, not transmitted in WSA
+    security
+        SecurityContext (WITH COMPONENTS {
+            contentType (mWSA)
+        }),
+    signatureLifetime       INTEGER(10..30000),     -- in milliseconds
+    infoElementIncluded     WaveElementsIncluded DEFAULT '000000000000000000000000'B, -- indicates which extensions to include in WSA. Must be consistent with wsaHdrOptInd
+        -- if all bits for twoDLocation, threeDLocation, repeatRate set to 0, then WSA Header Wave Info is not included, and WSA Header Option Indicator = 0b0xxx, where x=0 or 1
+        -- if optional wra info (see below) is not included, then WSA Header Option Indicator = 0bxxx0
+    advertiserId            AdvertiserIdentifier OPTIONAL,
+    serviceInfos            ServiceInfos OPTIONAL,
+    channelinfos            ChannelInfos OPTIONAL,
+    wra                     RoutingAdvertisement OPTIONAL,
+    -- if the following parameters omitted, use the default values from the SUT MIB
+    dataRate                DataRate80211 OPTIONAL,
+    userPriority            UserPriority OPTIONAL,
+    transmitPowerLevel      TXpower80211 OPTIONAL,
+    ...,
+    headerExts              SrvAdvMsgHeaderExts OPTIONAL,
+    flowId          		INTEGER OPTIONAL       -- used for C-V2X
+}
+
+StopWsaTxPeriodic ::= SEQUENCE{ -- stops WSA and deletes all associated provider services
+    radio       RadioInterface,
+    ...
+}
+
+AddWsaProviderService ::=SEQUENCE{  -- add service to the ProviderServiceRequestTable
+    radio                   RadioInterface,
+    serviceInfos            ServiceInfos,
+    ...
+}
+
+ChangeWsaProviderService ::=SEQUENCE{   -- change service in the ProviderServiceRequestTable
+    radio                   RadioInterface,
+    serviceInfos            ServiceInfos,
+    ...
+}
+
+DelWsaProviderService ::=SEQUENCE{  -- deletes specified service in the ProviderServiceRequestTable
+    radio                   RadioInterface,
+    serviceInfos            ServiceInfos,
+    ...
+}
+
+AddUserService ::= SEQUENCE{    -- register user service via WME-UserService.request
+    psid                    Psid,
+    radio                   RadioInterface,
+    userRequestType         UserRequestType,                -- autojoin on match, vs noSch
+    wsaType                 WsaType,                        -- secure or unsecure
+    providerServiceContext  ProviderServiceContext OPTIONAL,
+    channelIdentifier       ChannelNumber80211 OPTIONAL,    -- desired Sch channel for desired application service
+    sourceMACAddr           MACaddress OPTIONAL,            -- address of the sender of the WSA
+    advertiserId            AdvertiserIdentifier OPTIONAL,  -- optionally sent in the WSA
+    linkQuality             INTEGER OPTIONAL,
+    immediateAccess         INTEGER(0..255) OPTIONAL,       -- duration in sync intervals, value of 0 indicates immediate access not requested
+    wsaChannelIdentifier    ChannelNumber80211 OPTIONAL,    -- channel to listen for WSA, if omitted, use default CCH178
+    channelAccess           TimeSlot OPTIONAL,              -- timeslot to listen for WSA, if omitted, use default Timeslot 0
+    eventHandling           EventHandling,                  -- event handling when service is joined
+    ...,
+    reqPsidInSignCert       BOOLEAN OPTIONAL,               -- support for Require PSID in Signing Certificate 
+    ssp                     SecurityPermission OPTIONAL     -- Security Specific Permissions to be checked when messages/service is received
+}
+
+DelUserService ::= SEQUENCE{
+    psid                    Psid,
+    radio                   RadioInterface,
+    ...
+}
+
+RequestWsmTxCount ::= BOOLEAN (TRUE)      -- Request count of WSM packets Tx by SUT
+RequestWsmTxCountReset ::= BOOLEAN (TRUE) -- Reset count of WSM Tx packets
+
+RequestWsmRxCount ::= BOOLEAN (TRUE)      -- Request count of WSM packets Rx by SUT after PSID filter and match to pduFingerPrint
+RequestWsmRxCountReset ::= BOOLEAN (TRUE) -- Reset count of WSM Rx packets
+
+/*
+   Data Types
+*/
+ContentType ::= ENUMERATED {
+    mOther          (0),
+    mIeee16092Data  (1),
+    mWSA            (2),
+    mBSM            (3),
+    mMAP            (4),
+    mSPAT           (5),
+    mTIM            (6)
+}
+
+SignerIdentifierType ::= ENUMERATED {
+    unSecure                    (0),
+    useSecProfilePerContentType (1),
+    signIncludeCertificate      (2),
+    signIncludeDigest           (3),
+    ...
+}
+
+SecurityPermission ::= Opaque
+
+SecurityContext ::= SEQUENCE{                               -- used for transmit messages
+    contentType             ContentType,
+    signerIdentifierType    SignerIdentifierType,
+    certID                  HashedId8 OPTIONAL,
+    ...,
+    ssp                     SecurityPermission OPTIONAL     -- provides SSP to be matched against certificates for signing
+}
+
+WaveElementsIncluded ::= BIT STRING { -- created based on Table F.1 Allocated WAVE Information Element IDs 1609.3v3D6
+    transmitPowerUsed   (0),    -- WSMP-N-Header
+    twoDLocation        (1),    -- WSA header
+    threeDLocation      (2),    -- WSA header
+    advertiserId        (3),    -- WSA header
+    psc                 (4),    -- WSA Channel Info
+    ipv6Address         (5),    -- WSA Channel Info
+    servicePort         (6),    -- WSA Channel Info
+    providerMacAddress  (7),    -- WSA Channel Info
+    edcaParameterSet    (8),    -- WSA Channel Info
+    secondaryDns        (9),    -- WSA WRA
+    gatewayMacAddress   (10),   -- WSA WRA
+    channelNumber       (11),   -- WSMP-N-Header
+    dataRate            (12),   -- WSMP-N-Header
+    repeatRate          (13),   -- WSA header
+    rcpiThreshold       (14),   -- WSA Service Info
+    wsaCountThreshold   (15),   -- WSA Service Info
+    channelAccess       (16),   -- WSA Channel Info
+    wsaCountThresholdInt (17),  -- WSA Service Info
+    channelLoad         (18),
+    protocolType        (19),   -- Service Announcements
+    compactTimeConfidence (20), -- WSM-N-Header
+    extendedChannelInfos (21)   -- WSA Extended Channel Infos
+} (SIZE(24))
+
+UserRequestType ::= INTEGER { -- Used in AddUserService request
+    autoAccessOnMatch (0),
+    noSchAccess(1)
+} (0..1)
+
+WsaType ::= INTEGER {secureWsa (1), unsecureWsa(2), anyWsa (3) } (1..3)  -- Used in AddUserService request
+
+/*  COPIED from 1609.3 WSA.ASN WITH SOME MODIFICATIONS
+    Dependencies: WSA.ASN, WEE.ASN
+*/
+
+-- Service Info List
+-- ServiceInfos ::= SEQUENCE OF ServiceInfo
+
+/*ServiceInfo ::= SEQUENCE {
+    serviceID       Psid,
+    channelNumber   ChannelNumber80211,
+    chOptions       ChannelOptions
+    }
+
+ChannelOptions ::= SEQUENCE{        -- type redefinition to be used in ServiceInfo
+    extensions  ServiceInfoExts OPTIONAL
+    }
+*/
+END

@@ -1,0 +1,76 @@
+TCI-responseInfo
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IMPORTS
+IPv6Address,
+MACaddress FROM IEEE-1609-3-WEE {iso(1) identified-organization(3) ieee(111) standards-association-numbered-series-standards(2) wave-stds(1609) dot3(3) wee(1) version0(0)}
+
+ResultCode,
+MsgID,
+Exception,
+RadioInterface,
+--IpAddress,
+tciMtu,
+Opaque FROM TCI-CommonTypes
+;
+
+ResponseInfo ::= SEQUENCE {
+    msgID               MsgID,
+    resultCode          ResultCode,
+    info                InfoContent OPTIONAL, -- if exception reported, no InfoContent provided
+    exception           Exception OPTIONAL,
+    ...
+}
+
+InfoContent::= CHOICE {
+    ipv6InterfaceInfo   [1] Ipv6InterfaceInfo,
+    sutInfo             [2] SutInfo,
+    ...,
+    atCmdInfo           [3] ATcmdInfo,
+    pktCount            [4] PacketCount,
+    sutStatus           [5] SutStatus
+}
+
+/*
+    IPv6 Interface Information
+*/
+
+Ipv6InterfaceInfo ::= SEQUENCE OF SEQUENCE {
+    interfaceName       UTF8String(SIZE(1..255)), -- e.g. "eth0",
+    ipAddress           SEQUENCE OF IPv6Address, -- linked local, global, etc
+    macAddress          MACaddress, -- MAC address for the network interface
+    defaultGateway      IPv6Address OPTIONAL, -- default gateway IPv6 address (assigned via WSA/WRA)
+    primaryDns          IPv6Address OPTIONAL, -- primary DNS IPv6 address (assigned via WSA/WRA)
+    gatewayMacAddress   MACaddress OPTIONAL, -- gateway Mac address (assigned via WSA/WRA)
+    ...
+}
+
+SutInfo ::= SEQUENCE {
+    modelName       UTF8String(SIZE(1..255)) OPTIONAL,  -- model name if applicable
+    versionInfo     VersionInfoBlock,
+    ...
+}
+
+SutStatus ::= Opaque(SIZE(0..tciMtu))  -- to query device for Timing Confidence, to check position lock, to get UE parameters and verify against expected values
+            -- Format to be define
+
+VersionInfoBlock ::= SEQUENCE OF SEQUENCE {
+    componentType   INTEGER {            -- type of the component, which version is reported
+                        hardware    (0),    -- overall device hardware revision
+                        firmware    (1),    -- overall device firmware revision
+                        software    (2),    -- for any other software
+                        tciapp      (3),    -- for TCI application version
+                        radio       (4)     -- for PC5 radio module information
+                        },
+    versionId       UTF8String(SIZE(1..50)),
+    releaseDate     UTF8String(SIZE(1..50)) OPTIONAL,
+    description     UTF8String(SIZE(1..100)) OPTIONAL,   -- description of the component, e.g. BSM protocol stack
+    ...
+}
+
+ATcmdInfo ::= UTF8String(SIZE(1..tciMtu))
+PacketCount ::= INTEGER(0..9223372036854775807)
+
+
+END

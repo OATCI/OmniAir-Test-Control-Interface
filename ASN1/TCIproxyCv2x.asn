@@ -1,0 +1,143 @@
+TCI-CV2X-PROXY
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IMPORTS
+SetInitialState FROM TCI-wsm
+
+ltev2xMtu,
+Exception,
+Response,
+ResultCode,
+RadioInterface,
+MsgID FROM TCI-CommonTypes
+
+ResponseInfo FROM TCI-responseInfo
+
+SendUeConfigXML,
+SetFlowConfig,
+SetUeConfig,
+SendATcommand,
+FlowIdentifier
+FROM TCI-16093-PC5
+
+;
+
+TCIPROXYCV2X ::= CHOICE{
+    request         [0] Request,
+    response        [1] Response,
+--    indication      [2] Pc5Indication,       Rx data is sent in pcap format (default)
+    responseInfo    [3] PC5ProxyResponseInfo,  -- used for responses from AT command
+    exception       [4] Exception,
+    ...
+    }
+
+Request ::=  SEQUENCE {
+    messageId   MESSAGE-ID-AND-TYPE.&id({MessageTypes}),
+    value       MESSAGE-ID-AND-TYPE.&Type({MessageTypes}{@.messageId}),
+    ...
+}
+
+MESSAGE-ID-AND-TYPE ::= CLASS {
+    &id    MsgID UNIQUE,
+    &Type
+} WITH SYNTAX {&Type IDENTIFIED BY &id}
+
+MessageTypes MESSAGE-ID-AND-TYPE ::= {
+   { SetInitialState IDENTIFIED BY setInitialState} |
+   { SendUeConfigXML IDENTIFIED BY sendUeConfigXML} |
+   { SetFlowConfig IDENTIFIED BY setFlowConfig} |
+   { SetUeConfig IDENTIFIED BY setUeConfig} |
+   { SendATcommand IDENTIFIED BY sendATcommand} |
+   { StartUdpProxyTx IDENTIFIED BY startUdpProxyTx} |
+   { StartUdpProxyRx IDENTIFIED BY startUdpProxyRx} |
+   { StopUdpProxy IDENTIFIED BY stopUdpProxy}
+}
+
+setInitialState    MsgID ::= 1
+sendUeConfigXML    MsgID ::= 2
+setFlowConfig      MsgID ::= 3
+setUeConfig        MsgID ::= 4
+sendATcommand      MsgID ::= 5
+startUdpProxyTx    MsgID ::= 6
+startUdpProxyRx    MsgID ::= 7
+stopUdpProxy       MsgID ::= 8
+
+/* IMPORTED Messages without changes
+SetInitialState,
+SendUeConfigXML,
+SetFlowConfig,
+SetUeConfig,
+SendATcommand,
+FlowIdentifier
+*/
+
+/*
+Typical Sequence for Udp Proxy configuration (tx / rx):
+    SetInitialState
+    SetUeConfig or SendUeConfigXML
+    SendATcommand (optional)
+    SetFlowConfig
+    StartUdpForwardTx
+    StopUdpForwardTx
+*/
+
+
+StartUdpProxyTx ::= SEQUENCE {    -- configures UDP proxy outbound direction (UDP to radio)
+    port  IpPort,                 -- UDP IPv4 port used to forwarded PDUs via LTE-V2X radio interface
+                                  -- For WSMP, payload must include |Non-IP Type Header|WSMP Packet| see Fig M.6 IEEE 1609.3
+                                  -- For IP, payload must include |IP packet| see Fig M.7 IEEE 1609.3
+                                  -- IPv4 TOS or IPv6 Traffic Class byte will map to pppp (0-0,1-1...7-7)
+    radio    RadioInterface,
+    flowId   FlowIdentifier OPTIONAL,
+    pc5Mtu   INTEGER(0..65535) DEFAULT ltev2xMtu,
+    ...
+}
+
+StartUdpProxyRx ::= SEQUENCE {   -- configures UDP proxy inbound direction (radio to UDP)
+    destAddress IpAddress,        -- UDP IPv4 address of the remote host to receive forwarded PDUs from LTE-V2X radio interface
+    destPort    IpPort,           -- UDP IPv4 port on remote host to receive forwarded payload from LTE-V2X radio interface
+                                  -- Payload PDU to be formatted using PCAP with optional radio-tap header
+                                  -- For WSMP, payload must include |Non-IP Type Header|WSMP Packet| see Fig M.6 IEEE 1609.3
+                                  -- For IP, payload must include |IP packet| see Fig M.7 IEEE 1609.3
+                                  -- IPv4 TOS or IPv6 Traffic Class byte will map to pppp (0-0,1-1...7-7)
+    radio    RadioInterface,
+    flowId   FlowIdentifier OPTIONAL,
+    pc5Mtu   INTEGER(0..65535) DEFAULT ltev2xMtu,
+    proto    ENUMERATED {
+                pcap (0)       -- to be specified by OmniAir (pcap)
+             },
+    options  BIT STRING   {       -- if omitted, assume all bits set to 0
+                 radiotap   (0)   -- if set, include radiotap header
+             } OPTIONAL,
+    ...
+}
+
+StopUdpProxy ::= SEQUENCE {
+    direction    ENUMERATED {
+                 tx (0),
+                 rx (1)
+             },
+    port    IpPort,
+    destAddress IpAddress OPTIONAL,   -- UDP IPv4 address of the remote host
+    ...
+}
+
+/*
+   ResponseInfo Messages
+*/
+
+PC5ProxyResponseInfo ::= ResponseInfo (WITH COMPONENTS {
+    msgID,
+    resultCode,
+    info (
+      WITH COMPONENTS {atCmdInfo} |
+      WITH COMPONENTS {pktCount} |
+      WITH COMPONENTS {sutStatus} ) OPTIONAL, -- if exception reported, no InfoContent provided
+    exception OPTIONAL
+    })
+
+IpAddress ::= UTF8String(SIZE(2..255)) -- text string containing IPv6 (or IPv4 or hostname). Used as a parameter in Proxy configuration, WSA, IPv6 configuration, etc
+IpPort ::= INTEGER(0..65535)           -- UDP port used in Proxy configuration, WSA, SetInitialState
+
+END

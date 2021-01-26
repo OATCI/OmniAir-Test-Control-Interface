@@ -1,0 +1,25 @@
+value1 TCIMsg ::= {
+  version 1,
+  time 1234123412341234,
+  frame d16093 : request : {
+    messageId 2,
+    value Dot3SetWsmTxInfo : {
+      psid content : 32,
+      radio {
+        radio radio0,
+       antenna both
+      },
+      security {
+        contentType mBSM,
+        signerIdentifierType useSecProfilePerContentType
+      },
+      channelIdentifier 172,
+      timeslot continuous,
+      dataRate 6,
+      transmitPowerLevel 15,
+      infoElementsIncluded '000000000000000000000000'B,
+      userPriority 4,
+      destinationMACAddr 'FFFFFFFFFFFF'H
+    }
+  }
+}
