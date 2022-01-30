@@ -68,7 +68,7 @@ MESSAGE-ID-AND-TYPE ::= CLASS {
 MessageTypes MESSAGE-ID-AND-TYPE ::= {
     { SetInitialState   IDENTIFIED BY setInitialState } |
     { Pc5SetWsmTxInfo IDENTIFIED BY setWsmTxInfo} |
-    { StartWsmTx IDENTIFIED BY startWsmTx} |
+    { Pc5StartWsmTx IDENTIFIED BY startWsmTx} |
     { StopWsmTx IDENTIFIED BY stopWsmTx} |
     { Pc5StartWsmRx IDENTIFIED BY startWsmRx} |
     { StopWsmRx IDENTIFIED BY stopWsmRx} |
@@ -237,7 +237,7 @@ SendUeConfigXML ::= SEQUENCE {
    ...
 }
 
-StartWsmTx ::= SEQUENCE{  -- handled through WSM-WaveShortMessage.request
+Pc5StartWsmTx ::= SEQUENCE {  -- handled through WSM-WaveShortMessage.request
    radio           RadioInterface,         -- enumerated radio interfaces (radio0, radio1, ... radio 3)
    psid            Psid,
    flowId          INTEGER,                -- flowID matching one of the SetFlowConfig.flowId

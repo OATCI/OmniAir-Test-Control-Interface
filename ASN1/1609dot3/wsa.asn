@@ -84,8 +84,8 @@ chInfoType-M5        MedType ::= 5
 chInfoType-Cv2x      MedType ::= 12
 
 ChInfoTypes CHINFO-TYPE ::= {
-  { NULL                 IDENTIFIED BY chInfoType-unknown } |
-  { NULL                 IDENTIFIED BY chInfoType-any } |
+  -- { NULL                 IDENTIFIED BY chInfoType-unknown } |
+  -- { NULL                 IDENTIFIED BY chInfoType-any } |
   { ChannelInfo          IDENTIFIED BY chInfoType-M5 } |
   { LTEv2xChannelInfo    IDENTIFIED BY chInfoType-Cv2x },
   ...
