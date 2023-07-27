@@ -1,6 +1,5 @@
 # TCI-Implementation
-This TCI GitHub is under construction going from Private to Public.  The following text will be permanant once the Project goes Public.
-
+Copyright 2021-2023. OmniAir Consortium Inc. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
