@@ -1,0 +1,129 @@
+/* Copyright 2023 OmniAir Consortium Inc. All rights reserved.
+   Licensed http://www.apache.org/licenses/LICENSE-2.0 (the "License");
+   You may not use this file except in compliance with the License.  */
+
+/* Module: TCI-UsecaseControl
+   Purpose:  This TCI module includes control messages for configuring/disable/enable the
+   UCAM (USe Case Annonuncement Message) which tells test equipment and/or broadcasts the vehicle
+   safety applications "alert state" (new warning triggered, old warning cleared, or preempted)
+
+   This TCI module allows Test equipement (TE) to reconfgure the vehicle syfety system (e.g. V2X OBU) to 
+   keep the UCAM enabled for X HOurs (persistnetly regardless of power cycles), and where to send the 
+   UCAM results (e.g. TCI response,  UDP over ethernet, TCP over ethernet, DSMP broadcast, ETSI ITS BTP , WSMP
+   over the air.
+   
+   
+*/
+
+
+
+TCI-UsecaseControl
+
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IMPORTS
+Response,
+Exception,
+Time64,
+MsgID FROM TCI-CommonTypes
+
+
+SetInitialState FROM TCI-wsm
+
+;
+
+TCIUseCaseControl ::= CHOICE{
+    request         [0] Request,
+    response        [1] Response,
+    announcement    [2] UTF8String (SIZE(10..1400)), -- JER as per use-case-announcement-message.asn
+    exception       [4] Exception,
+    ...
+}
+
+Request ::=  SEQUENCE {
+    messageId   MESSAGE-ID-AND-TYPE.&id({MessageTypes}),
+    value       MESSAGE-ID-AND-TYPE.&Type({MessageTypes}{@.messageId}),
+    ...
+}
+
+MESSAGE-ID-AND-TYPE ::= CLASS {
+    &id    MsgID UNIQUE,
+    &Type
+} WITH SYNTAX {&Type IDENTIFIED BY &id}
+
+MessageTypes MESSAGE-ID-AND-TYPE ::= {
+    { SetInitialState IDENTIFIED BY setInitialState} |
+    { SetUseCaseAnnouncementConfig IDENTIFIED BY setUseCaseAnnouncementConfig }
+
+}
+
+setInitialState                     MsgID ::= 1
+setUseCaseAnnouncementConfig        MsgID ::= 2
+
+
+-- other transports have various other value. 
+UcamNetworkType ::= ENUMERATED {
+   netDisable      (0), -- Disabled, no wired netwok repsonse,  UCAM sent via some other method.
+   netTci          (1), -- normal main bench testing use case, returned from this TCI module
+   netUdp          (2), -- sent as Raw JSON UDP payload to UDP4 or UDP 6 destination/port
+   netTcp          (3), -- connect to speecified server, and send datagrams,  
+   ...
+}
+
+-- how is the UCAM on the radio interface(e.g. field testing , with RSU sniffers)
+UcamTransportType ::= ENUMERATED {
+   transportRaw    (0), -- UCAM JSON dumped into the interface with no headers, no WSMP.
+   transportWsmp   (1), -- 1609 headers added, using PSID configured in SetUseCaseAnnouncementConfig
+   transportDsmp   (2), -- China DSMP headers added, using PSID configured in SetUseCaseAnnouncementConfig
+   transportBtp    (3), -- ETSI ITS send in GN+BTP as indicated 
+   broadcastUdp    (4), -- UDP 6 or 4 dpending on IP address type SetUseCaseAnnouncementConfig'
+   ...
+}
+
+WiredNetworkDestination ::= SEQUENCE {
+   -- non TCI TCP or UDP  Network delivery config of UCAM (Could be IPv6 or IPv4 of any network interface except CV2X)
+ 
+   wiredDestIpAddressString    UTF8String (SIZE(1..40)) OPTIONAL, -- IPV4 or IPV6, without port#
+   wiredIpDestPort INTEGER(0..65535) OPTIONAL,                    -- UDP/TCP if not just sending over TCI 
+   ...
+}
+
+WirelessBroadcastConfig ::= SEQUENCE {
+   -- optional related to broadcasting OTA
+   otaTransport            UcamTransportType ,                -- how to broadcast the UCAM OTA
+   otaPsidValue            INTEGER(0..300000000) OPTIONAL,    -- PSID/AID to send OTA with, if enabled.
+   otaSecured              BOOLEAN OPTIONAL,                  --  WSMp/DSMP signed with certs enabling otaPsidValue, not relevant to UDP
+   otaDestIpAddressString  UTF8String (SIZE(1..40)) OPTIONAL, -- IPV4 or IPV6, without port#
+   otaIpDestPort           INTEGER(0..65535) OPTIONAL,        -- For UDP4/UDP6 if not broadcasting over WSMP/BTP/DSMP
+   ...
+}
+
+
+-- usecase announcement(UCAM) configuration TCI command.
+-- configure the SUT to send/transmit Usecase Announcements to the specified destination.
+-- Default behavior if enabled is to send over TCI Response, but can also be sent via UDP, TCP, WSMP, GN, DSMP
+SetUseCaseAnnouncementConfig ::= SEQUENCE {
+   enableUcamMinutes	  INTEGER(0..3000), -- set to 0 to disable, persistent in SUT. SUT  automatically disables afer this.
+   repeatRateMillseconds   INTEGER(0..10000) OPTIONAL, -- if alert occuring, how often to UCAM; 0 disables
+   setSystemName           UTF8String (SIZE(1..8)) OPTIONAL,  -- Friendly SUT name, used in UCAM 
+   heartbeatSeconds	  INTEGER(0..300) OPTIONAL, -- even if no alerts, if UcamEnabled, make heartbeat  at least evey heartbeat Seconds , which is alert "none"
+     
+   -- Optional , though generally default delivery of UCAM to the TE, (Typically over TCI, but can be UDP or TCP
+   wiredUcamDelivery       UcamNetworkType,                      --TCI UCAM's, disabled or TCP/UDP over Wi-Fi/Ethernet, etc.
+   wiredDestination        WiredNetworkDestination OPTIONAL,     --Excluded if wiredUcamDelivery is disabled or TCI
+
+   -- Wireless over the air (OTA) broadcast destination.  only one at time, can be instead or in conjunction with wirredDestination.
+   wirelessBroadcastEnable   BOOLEAN,
+   wirelessBroadcast         WirelessBroadcastConfig OPTIONAL,   --Excluded if wirelessBroadcastEnable is false
+   ...
+}
+(
+  (WITH COMPONENTS {..., wiredUcamDelivery( netDisable | netTci ), wiredDestination ABSENT})
+ |(WITH COMPONENTS {..., wiredUcamDelivery( netUdp | netTcp ), wiredDestination PRESENT})
+ |(WITH COMPONENTS {..., wirelessBroadcastEnable( FALSE ), wirelessBroadcast ABSENT})
+ |(WITH COMPONENTS {..., wirelessBroadcastEnable( TRUE ), wirelessBroadcast PRESENT})
+)
+
+
+END

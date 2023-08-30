@@ -1,0 +1,54 @@
+/* Copyright 2023 OmniAir Consortium Inc. All rights reserved.
+   Licensed http://www.apache.org/licenses/LICENSE-2.0 (the "License");
+   You may not use this file except in compliance with the License.  */
+
+
+
+Apptest DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+AlertState ::= ENUMERATED {
+   first      (1),   -- This is the UCAM indicating the alert just started/triggered
+   ongoing    (2),   -- Periodically sent of alert continues to be sent, at configured interval (e.g. 1 sec)
+   done       (3),   -- Alert is no longer active due to trigger conditions clearing
+   ...
+}
+
+Alert ::= SEQUENCE       {
+   state      AlertState                OPTIONAL,  -- is this alert ending, just triggered or ongoing.  This is not required
+   oa_alet    UTF8String (SIZE(1..8))   OPTIONAL,  -- OmniAir standardized reqiured use-case alert names.  used in 780a, 780b app testing.
+   case       UTF8String (SIZE(1..12))  OPTIONAL,  -- freeform App use-case name, OEM choice
+   hidden     BOOLEAN                   OPTIONAL,  -- True if higher priority app preempted  and is more active to driver than this one
+   tempID     OCTET STRING (SIZE(4))    OPTIONAL,  -- RV or RSM Common container or TIM triggering this alert
+   ms_before  INTEGER(0..60000)         OPTIONAL,  -- miliseconds before UCAM message, this Alert first triggered or cleared.
+   ttc        INTEGER(0..60000)         OPTIONAL,  -- time to collision in milliseconds
+   range      INTEGER(0..1000000)       OPTIONAL,  -- distance in cm to the hazard/intersection/RV of concern
+   code       INTEGER(0..65535)         OPTIONAL,  -- Alert Code, like an ITIS Code, TIM/RSM
+   regID      INTEGER(0..65535)         OPTIONAL,  -- Regulatory ID relevant to this  alert (Road Regulator ID, etc)
+   lane       INTEGER(0..255)           OPTIONAL,  -- Lane ID as used in a Spat/Map movement TODO: is apprach & lane both needed?
+   sig_grp    INTEGER(0..255)           OPTIONAL,  -- Signal Group Identifier if a RLVW, IMA or alert using Map/SPAT
+   approach   INTEGER(0..255)           OPTIONAL,  -- Intersection Access-point Approach identifier
+   string     UTF8String (SIZE(1..500)) OPTIONAL,  -- ITIS String, or other regional details from the specific alert, or notes
+   ...
+}
+
+-- NOTE: terse identifier names afor compact JER/XML/ASN human readable encodings to fit in 1500B MTU
+UCAM ::= SEQUENCE       {
+   ver    INTEGER (0..127),            	     -- UCAM Version number, mandatory on every UCAM
+   nam    UTF8String (SIZE(1..8)) OPTIONAL,  -- Friendly Vehicle Car Name 
+   seq    INTEGER (0..255),                  -- short sequence number
+   ms     INTEGER(0..60000),                 -- time milliseconds of current minute, at which alert presented, or was ended
+   lat    INTEGER(-900000000..900000000),    -- Latitude where use-csae triggeted, or is now, if ending/ongiong
+   lon    INTEGER(-1800000000..1800000000),  --   Longitude in customary Datum (WGS84	, GCJ02)
+   alt    INTEGER(-10000..600000) OPTIONAL,  -- centimeters above sea level if relevant to any use-cases alerts 
+   hpe    INTEGER (0..100000),               -- estimated horizontal position error in cm
+   head   INTEGER (0..359) ,                 -- HV/DUT vehicle at point UV was produced
+   vel    INTEGER(0..10000),                 -- cm/sec speed in heading  at point UCAM was produced
+   acc    INTEGER(-2000..2000),              -- vehicle axis longitudinal accel, in cm/s^2
+   swVer  UTF8String (SIZE(1..8)) OPTIONAL,  -- DUT Software version (rarely added) Only transmitted rarely on enable and power-up
+   id     OCTET STRING (SIZE(4))  OPTIONAL,  -- linkage to the BSM/CAM/C-BSM temporary ID to the Ego DUT's pseudonym ID
+   alerts SEQUENCE (SIZE(1..16)) OF Alert OPTIONAL, -- if no alerts sequence, this is considered a "heartbeat"
+   ...
+}
+END
+
