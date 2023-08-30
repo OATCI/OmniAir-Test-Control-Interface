@@ -19,8 +19,8 @@ TCI29451            FROM TCI-29451
 TCI31611            FROM TCI-31611
 TCISutControl       FROM TCI-SutControl
 Time64              FROM TCI-CommonTypes
-TCIDriveCast        FROM TCI-DriveCast       -- Addition to feed simulated sensors, paths to vehicle
-TCIUseCaseControl   FROM TCI-UseCaseControl  -- Configuration for UCAM application testing reports.
+TCIDriveCast        FROM TCI-DriveCast       -- Module feeds simulated sensors, paths to vehicle SUT to blend with live sensors.
+TCIUseCaseControl   FROM TCI-UseCaseControl  -- Configuration Use Case Announcement Message (UCAM) generation.
 ;
 
 TCIMsg ::= SEQUENCE{
