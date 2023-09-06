@@ -11,14 +11,18 @@ BEGIN
    reported in the heading is just the location/time of the report.  UCAM may have been generated to indicate the first/done Alert
    of another alert in the "alerts" sequence. 
 
-  TBD1:  should the location/speed/heading/accel/hpe maybe be attached to each alert, where it triggered, rather than UCAM  container?
+  TBD1:  should the location/speed/heading/accel/hpe maybe be attached to each alert, where it triggered,
+         rather than UCAM  container?  for now, its one 4d-fix location,time details per UCAM, not per alert. with "dur"
+         indicating how long since the first alert was generated, on the "ongoing" or "done" alerts.
 
    
 */
 AlertState ::= ENUMERATED {
-   first      (1),   -- This is the UCAM indicating the alert just started/triggered
-   ongoing    (2),   -- Periodically sent of alert continues to be sent, at configured interval (e.g. 1 sec)
-   done       (3),   -- Alert is no longer active due to trigger conditions clearing
+   boot       (0),   -- Sent once on ITS applicaiton start-up to help detect crash/restarts
+   once       (1),   -- For an alert that presents once and only once, no concept of first/ongoing/done
+   first      (2),   -- This is the UCAM indicating the alert just started/triggered
+   ongoing    (3),   -- Periodically sent of alert continues to be sent, at configured interval (e.g. 1 sec)
+   done       (4),   -- Alert is no longer active due to trigger conditions clearing
    ...
 }
 
@@ -37,8 +41,10 @@ AlertState ::= ENUMERATED {
 
 Alert ::= SEQUENCE       {
    state      AlertState                OPTIONAL,  -- Alert ending, just triggered or ongoing.  This is not required
-   oa_alet    UTF8String (SIZE(1..8))   OPTIONAL,  -- OmniAir standardized required use-case alert names for 780a/b Applicaiton testing.
-   case       UTF8String (SIZE(1..12))  OPTIONAL,  -- Freeform App use-case name, OEM choice
+   oa_alet    UTF8String (SIZE(1..10)),            -- OmniAir standardized required use-case alert names for 780a/b Applicaiton testing.
+   case       UTF8String (SIZE(1..10),             -- Freeform App use-case name, OEM choice
+   count      INTEGER(0..65534)                    -- Counter times this use-case/alert has triggerd. Checks negative TC's
+                                                   -- Not counting ongoing , only counts up on unique "first" or "once" triggers.
    hidden     BOOLEAN                   OPTIONAL,  -- True if higher priority app preempted  and is more active to driver than this one
    id         OCTET STRING (SIZE(4))    OPTIONAL,  -- RV or RSM Common container or TIM triggering this alert
    dur        INTEGER(0..60000)         OPTIONAL,  -- Duration elapsed time since first Alert, vs. current UCAM header "ms"  
@@ -55,13 +61,13 @@ Alert ::= SEQUENCE       {
 
 -- NOTE: terse identifier names afor compact JER/XML/ASN human readable encodings to fit in 1500B MTU
 UCAM ::= SEQUENCE       {
-   ver    INTEGER (0..127),            	     -- UCAM Version number, mandatory on every UCAM
+   ver    INTEGER (0..127),                  -- UCAM Version number, mandatory on every UCAM
    nam    UTF8String (SIZE(1..8)) OPTIONAL,  -- Friendly SUT Vehicle Name 
    seq    INTEGER (0..255),                  -- short sequence number
    ms     INTEGER(0..60000),                 -- time milliseconds of current minute, at which alert presented, or was ended
-   lat    INTEGER(-900000000..900000000),    -- position where alert first triggered, or was cleared, or if just ongoing.
-   lon    INTEGER(-1800000000..1800000000),  -- Longitude in customary Datum (WGS84	, GCJ02)
-   alt    INTEGER(-10000..600000) OPTIONAL,  -- centimeters above sea level if relevant to any use-cases alerts 
+   lat    INTEGER(-900000000..900000000),    -- in 1E7 degrees, position where alert first triggered, or was cleared, or if just ongoing.
+   lon    INTEGER(-1800000000..1800000000),  -- Longitude in customary Datum (WGS84	, GCJ02) * 1E7
+   alt    INTEGER(-10000..600000) OPTIONAL,  -- Centimeters above sea level if relevant to any use-cases alerts 
    hpe    INTEGER (0..100000),               -- estimated horizontal position error in cm
    head   INTEGER (0..359) ,                 -- HV/DUT vehicle at point UV was produced
    vel    INTEGER(0..10000),                 -- cm/sec speed in heading  at point UCAM was produced, or of Alert if first alert included.
@@ -69,6 +75,7 @@ UCAM ::= SEQUENCE       {
    sw     UTF8String (SIZE(1..8)) OPTIONAL,  -- SUT top level Software version (rarely added) Only transmitted rarely on enable and power-up
    id     OCTET STRING (SIZE(4))  OPTIONAL,  -- linkage to the BSM/CAM/C-BSM temporary ID to the Ego DUT's pseudonym ID
    alerts SEQUENCE (SIZE(1..16)) OF Alert OPTIONAL, -- if no alerts sequence, this is considered a "heartbeat"
+   /* TBD: should we have a counter of the number of unique, first/once alerts across all alert types, to check negative use cases */
    ...
 }
 END
