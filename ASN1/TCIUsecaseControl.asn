@@ -20,7 +20,12 @@
 TCI-UsecaseControl
 
 DEFINITIONS AUTOMATIC TAGS ::=
-.
+BEGIN
+
+IMPORTS
+Response,
+Exception,
+Time64,
 MsgID FROM TCI-CommonTypes
 
 

@@ -41,9 +41,9 @@ AlertState ::= ENUMERATED {
 
 Alert ::= SEQUENCE       {
    state      AlertState                OPTIONAL,  -- Alert ending, just triggered or ongoing.  This is not required
-   oa_alet    UTF8String (SIZE(1..10)),            -- OmniAir standardized required use-case alert names for 780a/b Applicaiton testing.
-   case       UTF8String (SIZE(1..10),             -- Freeform App use-case name, OEM choice
-   count      INTEGER(0..65534)                    -- Counter times this use-case/alert has triggerd. Checks negative TC's
+   oa_alet    UTF8String (SIZE(1..10)),            -- OmniAir standard 740a-OA required use-case alert names for 780a/b App tests
+   case       UTF8String (SIZE(1..10)),             -- Freeform App use-case name, OEM choice
+   n          INTEGER(0..99 ),                     -- Mandatoy per-app counter,  qty times  use-case/alert has triggerd since boot. Checks negative TC's
                                                    -- Not counting ongoing , only counts up on unique "first" or "once" triggers.
    hidden     BOOLEAN                   OPTIONAL,  -- True if higher priority app preempted  and is more active to driver than this one
    id         OCTET STRING (SIZE(4))    OPTIONAL,  -- RV or RSM Common container or TIM triggering this alert
@@ -59,23 +59,24 @@ Alert ::= SEQUENCE       {
    ...
 }
 
--- NOTE: terse identifier names afor compact JER/XML/ASN human readable encodings to fit in 1500B MTU
+-- NOTE: terse identifier names afor compact JER/XML/ASN human readable encodings to fit in smaller  MTU transports (e.g. TCI)
 UCAM ::= SEQUENCE       {
    ver    INTEGER (0..127),                  -- UCAM Version number, mandatory on every UCAM
    nam    UTF8String (SIZE(1..8)) OPTIONAL,  -- Friendly SUT Vehicle Name 
-   seq    INTEGER (0..255),                  -- short sequence number
+   seq    INTEGER (0..255),                  -- short sequence number. mandatory.  Increments and wraps.
    ms     INTEGER(0..60000),                 -- time milliseconds of current minute, at which alert presented, or was ended
    lat    INTEGER(-900000000..900000000),    -- in 1E7 degrees, position where alert first triggered, or was cleared, or if just ongoing.
    lon    INTEGER(-1800000000..1800000000),  -- Longitude in customary Datum (WGS84	, GCJ02) * 1E7
    alt    INTEGER(-10000..600000) OPTIONAL,  -- Centimeters above sea level if relevant to any use-cases alerts 
-   hpe    INTEGER (0..100000),               -- estimated horizontal position error in cm
+   hpe    INTEGER (0..100000),               -- Estimated 2D horizontal position error in cm, One sigma Circular Error Probable
    head   INTEGER (0..359) ,                 -- HV/DUT vehicle at point UV was produced
    vel    INTEGER(0..10000),                 -- cm/sec speed in heading  at point UCAM was produced, or of Alert if first alert included.
    acc    INTEGER(-2000..2000),              -- vehicle axis longitudinal accel, in cm/s^2
-   sw     UTF8String (SIZE(1..8)) OPTIONAL,  -- SUT top level Software version (rarely added) Only transmitted rarely on enable and power-up
+   sw     UTF8String (SIZE(1..8)) OPTIONAL,  -- SUT master software version#, included only on enable and power-up
    id     OCTET STRING (SIZE(4))  OPTIONAL,  -- linkage to the BSM/CAM/C-BSM temporary ID to the Ego DUT's pseudonym ID
    alerts SEQUENCE (SIZE(1..16)) OF Alert OPTIONAL, -- if no alerts sequence, this is considered a "heartbeat"
-   /* TBD: should we have a counter of the number of unique, first/once alerts across all alert types, to check negative use cases */
+
+   /* TBD2: should we have a counter of the number of unique, first/once alerts across all alert types, to check negative use cases */
    ...
 }
 END
