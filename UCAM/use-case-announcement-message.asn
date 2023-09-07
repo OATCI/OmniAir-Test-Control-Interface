@@ -26,6 +26,17 @@ AlertState ::= ENUMERATED {
    ...
 }
 
+/* Alert Level  that the safety algorithm was calculating, not all produce only imminent warnings.
+*/	
+AlertLevel ::= ENUMERATED {
+   internal       (0),   -- was not actually presented to a human but may have been quietly delivered to ADAS
+   advisory       (1),   -- a non imminent advisory was presented driver
+   imminent       (2),  
+   ...
+}
+
+
+
 /* Alert details, part of the sequence of 1 to 16 alerts contained in the  UCAM,
    contains many OPTIONAL fields for future use and more comprehensive testing.  However for the basic Omnaiir 780a/780b
    testing,it is estimated that only the folling data elements are mandatory to support:
@@ -40,22 +51,35 @@ AlertState ::= ENUMERATED {
 */
 
 Alert ::= SEQUENCE       {
-   state      AlertState                OPTIONAL,  -- Alert ending, just triggered or ongoing.  This is not required
+   state      AlertState                OPTIONAL,  -- Alert ending, just triggered or ongoing.  Not required, but recommended
    oa_alet    UTF8String (SIZE(1..10)),            -- OmniAir standard 740a-OA required use-case alert names for 780a/b App tests
-   case       UTF8String (SIZE(1..10)),             -- Freeform App use-case name, OEM choice
-   n          INTEGER(0..99 ),                     -- Mandatoy per-app counter,  qty times  use-case/alert has triggerd since boot. Checks negative TC's
+   case       UTF8String (SIZE(1..10)),            -- Freeform App use-case name, OEM choice
+   level      AlertLevel                OPTIONAL,  
+   n          INTEGER(0..99 ),                     -- Mandatoy per-app counter, # times this case+level has triggerd since boot. Checks negative TC's
                                                    -- Not counting ongoing , only counts up on unique "first" or "once" triggers.
    hidden     BOOLEAN                   OPTIONAL,  -- True if higher priority app preempted  and is more active to driver than this one
-   id         OCTET STRING (SIZE(4))    OPTIONAL,  -- RV or RSM Common container or TIM triggering this alert
    dur        INTEGER(0..60000)         OPTIONAL,  -- Duration elapsed time since first Alert, vs. current UCAM header "ms"  
+   v_limit	  INTEGER(0..200)		       OPTIONAL,  -- The variable speed limit if the alert is based on speed (e.g. CSW). Regional units KPH/MPH
+   v_advise   INTEGER(0..200)            OPTIONAL,  -- Adivsed speed from GLOSA/Green-wave, green-speed applications
+   ttg        INTEGER(0..1000)          OPTIONAL,  -- Time to Green (seconds), for traffic light information, if presented to DRiver.
+   code       INTEGER(0..65535)         OPTIONAL,  -- Alert Code, like an ITIS Code, TIM/RSM
+   string     UTF8String (SIZE(1..500)) OPTIONAL,  -- ITIS String, or other regional details from the specific alert, or notes
+
+
+	/* optional Alert details, internal calculations, that may be supplied to ADAS, or may be required for testing
+		Can be required for complex use-csae testing */
+
+   id         OCTET STRING (SIZE(4))    OPTIONAL,  -- RV, VRU  or RSM Common container or TIM triggering this alert
    ttc        INTEGER(0..60000)         OPTIONAL,  -- Time to collision in milliseconds
    d2c        INTEGER(0..1000000)       OPTIONAL,  -- Distance(cm) to the hazard/intersection/RV of concern
-   code       INTEGER(0..65535)         OPTIONAL,  -- Alert Code, like an ITIS Code, TIM/RSM
    regID      INTEGER(0..65535)         OPTIONAL,  -- Regulatory ID relevant to this  alert (Road Regulator ID, etc)
    lane       INTEGER(0..255)           OPTIONAL,  -- Lane ID as used in a Spat/Map movement TODO: is apprach & lane both needed?
    sig_grp    INTEGER(0..255)           OPTIONAL,  -- Signal Group Identifier if a RLVW, IMA or alert using Map/SPAT
    approach   INTEGER(0..255)           OPTIONAL,  -- Intersection Access-point Approach identifier
-   string     UTF8String (SIZE(1..500)) OPTIONAL,  -- ITIS String, or other regional details from the specific alert, or notes
+ 
+   /* Debugging extras */
+   oem_ext    UTF8String (SIZE(1..200)) OPTIONAL,  -- Optional OEM debug additional info that can help root-cause issues.
+
    ...
 }
 
