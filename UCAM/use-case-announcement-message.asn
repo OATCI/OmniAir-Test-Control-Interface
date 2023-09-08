@@ -5,20 +5,14 @@
 UCAM DEFINITIONS AUTOMATIC TAGS ::=
 BEGIN
 
-/* AlertState is the state of each inthe alerts sequence, since a UCAM is generated each time an Alert Strts or ends, it will be set 
+/* AlertState is the state of each Alert in the alerts sequence, since a UCAM is generated each time an Alert starts/ends, state is set 
    to "first" or "done" in those cases, and the location +{hpe, vel,head, etc| in the UCAM header is the location where that
    Alert started/ended.  If simply "ongoing"  the "ms_before" explains how long since the first alert was generated, and the position
    reported in the heading is just the location/time of the report.  UCAM may have been generated to indicate the first/done Alert
    of another alert in the "alerts" sequence. 
-
-  TBD1:  should the location/speed/heading/accel/hpe maybe be attached to each alert, where it triggered,
-         rather than UCAM  container?  for now, its one 4d-fix location,time details per UCAM, not per alert. with "dur"
-         indicating how long since the first alert was generated, on the "ongoing" or "done" alerts.
-
-   
 */
 AlertState ::= ENUMERATED {
-   boot       (0),   -- Sent once on ITS applicaiton start-up to help detect crash/restarts
+   boot       (0),   -- Sent once on ITS boot to help detect crash/restarts
    once       (1),   -- For an alert that presents once and only once, no concept of first/ongoing/done
    first      (2),   -- This is the UCAM indicating the alert just started/triggered
    ongoing    (3),   -- Periodically sent of alert continues to be sent, at configured interval (e.g. 1 sec)
@@ -39,28 +33,27 @@ AlertLevel ::= ENUMERATED {
 
 /* Alert details, part of the sequence of 1 to 16 alerts contained in the  UCAM,
    contains many OPTIONAL fields for future use and more comprehensive testing.  However for the basic Omnaiir 780a/780b
-   testing,it is estimated that only the folling data elements are mandatory to support:
-		 oa_alert
-         hidden  
-   Even the "state" is not required, as a DUT for simplicity, but its reocmmended for Vehicle to support if it can.
+   testing,it is estimated that only the "omniAir" the count, hidden, and  "n"  are mandatory to support:
+	
+   "state" is not required, as a DUT for simplicity, but its recommneded for Vehicle to support,  Please.
    However a SUT  may only send Alert, with the string, and no indication of whether it was first, ongoing, last.
 
-   For testing over-lapping, simultanously triggering alerts (e.g. a TIM and  a RLVW), the "hidden" field will inidcate which 
-   alerts are not being actively shown. 
+   For testing over-lapping, simultaneously   triggering alerts (e.g. a TIM and  a RLVW), the "hidden" indicates  which 
+   alerts are supressed/preempted by higher urgency alerts.
 
 */
 
 Alert ::= SEQUENCE       {
    state       AlertState                OPTIONAL,  -- Alert ending, just triggered or ongoing.  Not required, but recommended
-   omniAir     UTF8String (SIZE(1..10)),            -- OmniAir standard 740a-OA required use-case alert names for 780a/b App tests
-   case        UTF8String (SIZE(1..10)),            -- Freeform App use-case name, OEM choice
-   level       AlertLevel                OPTIONAL,  
-   n           INTEGER(0..99 ),                     -- Mandatoy per-app counter, # times this case+level has triggerd since boot. Checks negative TC's
-                                                   -- Not counting ongoing , only counts up on unique "first" or "once" triggers.
+   omniAir     UTF8String (SIZE(1..8)),             -- OmniAir standard 740a-OA required use-case alert names for 780a/b App tests
+   usecase     UTF8String (SIZE(1..15))  OPTIONAL,  -- Free-form App use-case name, OEM choice, as opposed to the OmniAir names.
+   level       AlertLevel                OPTIONAL,  -- Sub detail on the intensity of the warning. (Advisory, imminent) 
+   n           INTEGER(0..99 ),                     -- Per-app counter, # times this case+level has triggered since boot. Checks negative TC's
+                                                    -- Not counting ongoing , only counts up on unique "first" or "once" triggers.
    hidden      BOOLEAN                   OPTIONAL,  -- True if higher priority app preempted  and is more active to driver than this one
    dur         INTEGER(0..60000)         OPTIONAL,  -- Duration elapsed time since first Alert, vs. current UCAM header "ms"  
-   speedLimit	INTEGER(0..200)		       OPTIONAL,  -- The variable speed limit if the alert is based on speed (e.g. CSW). Regional units KPH/MPH
-   speedAdvice INTEGER(0..200)            OPTIONAL,  -- Adivsed speed from GLOSA/Green-wave, green-speed applications
+   speedLimit	INTEGER(0..200)		     OPTIONAL,  -- The variable speed limit if the alert is based on speed (e.g. CSW). Regional units KPH/MPH
+   speedAdvice INTEGER(0..200)           OPTIONAL,  -- Adivsed speed from GLOSA/Green-wave, green-speed applications
    ttg         INTEGER(0..1000)          OPTIONAL,  -- Time to Green (seconds), for traffic light information, if presented to DRiver.
    code        INTEGER(0..65535)         OPTIONAL,  -- Alert Code, like an ITIS Code, TIM/RSM
    string      UTF8String (SIZE(1..500)) OPTIONAL,  -- ITIS String, or other regional details from the specific alert, or notes
@@ -83,12 +76,14 @@ Alert ::= SEQUENCE       {
    ...
 }
 
--- NOTE: terse identifier names afor compact JER/XML/ASN human readable encodings to fit in smaller  MTU transports (e.g. TCI)
+-- NOTE: terse identifier names for  compact JER human readable encodings to fit in smaller  MTU transports (e.g. TCI/WSMP)
 UCAM ::= SEQUENCE       {
    ver    INTEGER (0..127),                  -- UCAM Version number, mandatory on every UCAM
    nam    UTF8String (SIZE(1..8)) OPTIONAL,  -- Friendly SUT Vehicle Name 
    seq    INTEGER (0..255),                  -- short sequence number. mandatory.  Increments and wraps.
    ms     INTEGER(0..60000),                 -- time milliseconds of current minute, at which alert presented, or was ended
+   tot    INTEGER(0..999),                   -- Count of total number of unique Alerts of any Level that have trigete since stack start. 
+                                             -- set to zero on boot, increments on new alerts. For negative test cases.
    lat    INTEGER(-900000000..900000000),    -- in 1E7 degrees, position where alert first triggered, or was cleared, or if just ongoing.
    lon    INTEGER(-1800000000..1800000000),  -- Longitude in customary Datum (WGS84	, GCJ02) * 1E7
    alt    INTEGER(-10000..600000) OPTIONAL,  -- Centimeters above sea level if relevant to any use-cases alerts 
@@ -100,7 +95,6 @@ UCAM ::= SEQUENCE       {
    id     OCTET STRING (SIZE(4..8))  OPTIONAL,  -- linkage to the BSM/CAM/C-BSM temporary ID to the Ego DUT's pseudonym ID
    alerts SEQUENCE (SIZE(1..16)) OF Alert OPTIONAL, -- if no alerts sequence, this is considered a "heartbeat"
 
-   /* TBD2: should we have a counter of the number of unique, first/once alerts across all alert types, to check negative use cases */
    ...
 }
 END
