@@ -2,7 +2,7 @@
    Licensed http://www.apache.org/licenses/LICENSE-2.0 (the "License");
    You may not use this file except in compliance with the License.  */
 
-/* Module: TCI-UsecaseControl
+/* Module: TCI-UseCase
    Purpose:  This TCI module includes control messages for configuring/disable/enable the
    UCAM (USe Case Annonuncement Message) which tells test equipment and/or broadcasts the vehicle
    safety applications "alert state" (new warning triggered, old warning cleared, or preempted)
@@ -17,7 +17,7 @@
 
 
 
-TCI-UseCaseControl
+TCI-UseCase
 
 DEFINITIONS AUTOMATIC TAGS ::=
 BEGIN
@@ -33,7 +33,7 @@ SetInitialState FROM TCI-wsm
 
 ;
 
-TCIUseCaseControl ::= CHOICE{
+TCIUseCase ::= CHOICE{
     request         [0] Request,
     response        [1] Response,
     announcement    [2] UTF8String (SIZE(10..1400)), -- JER as per use-case-announcement-message.asn
