@@ -17,7 +17,7 @@
 
 
 
-TCI-UsecaseControl
+TCI-UseCaseControl
 
 DEFINITIONS AUTOMATIC TAGS ::=
 BEGIN
@@ -100,7 +100,7 @@ WirelessBroadcastConfig ::= SEQUENCE {
 }
 
 
--- usecase announcement(UCAM) configuration TCI command.
+-- Use Case Announcement(UCAM) configuration TCI command.
 -- configure the SUT to send/transmit Usecase Announcements to the specified destination.
 -- Default behavior if enabled is to send over TCI Response, but can also be sent via UDP, TCP, WSMP, GN, DSMP
 SetUseCaseAnnouncementConfig ::= SEQUENCE {

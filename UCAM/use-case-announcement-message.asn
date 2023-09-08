@@ -51,34 +51,34 @@ AlertLevel ::= ENUMERATED {
 */
 
 Alert ::= SEQUENCE       {
-   state      AlertState                OPTIONAL,  -- Alert ending, just triggered or ongoing.  Not required, but recommended
-   oa_alet    UTF8String (SIZE(1..10)),            -- OmniAir standard 740a-OA required use-case alert names for 780a/b App tests
-   case       UTF8String (SIZE(1..10)),            -- Freeform App use-case name, OEM choice
-   level      AlertLevel                OPTIONAL,  
-   n          INTEGER(0..99 ),                     -- Mandatoy per-app counter, # times this case+level has triggerd since boot. Checks negative TC's
+   state       AlertState                OPTIONAL,  -- Alert ending, just triggered or ongoing.  Not required, but recommended
+   omniAir     UTF8String (SIZE(1..10)),            -- OmniAir standard 740a-OA required use-case alert names for 780a/b App tests
+   case        UTF8String (SIZE(1..10)),            -- Freeform App use-case name, OEM choice
+   level       AlertLevel                OPTIONAL,  
+   n           INTEGER(0..99 ),                     -- Mandatoy per-app counter, # times this case+level has triggerd since boot. Checks negative TC's
                                                    -- Not counting ongoing , only counts up on unique "first" or "once" triggers.
-   hidden     BOOLEAN                   OPTIONAL,  -- True if higher priority app preempted  and is more active to driver than this one
-   dur        INTEGER(0..60000)         OPTIONAL,  -- Duration elapsed time since first Alert, vs. current UCAM header "ms"  
-   v_limit	  INTEGER(0..200)		       OPTIONAL,  -- The variable speed limit if the alert is based on speed (e.g. CSW). Regional units KPH/MPH
-   v_advise   INTEGER(0..200)            OPTIONAL,  -- Adivsed speed from GLOSA/Green-wave, green-speed applications
-   ttg        INTEGER(0..1000)          OPTIONAL,  -- Time to Green (seconds), for traffic light information, if presented to DRiver.
-   code       INTEGER(0..65535)         OPTIONAL,  -- Alert Code, like an ITIS Code, TIM/RSM
-   string     UTF8String (SIZE(1..500)) OPTIONAL,  -- ITIS String, or other regional details from the specific alert, or notes
+   hidden      BOOLEAN                   OPTIONAL,  -- True if higher priority app preempted  and is more active to driver than this one
+   dur         INTEGER(0..60000)         OPTIONAL,  -- Duration elapsed time since first Alert, vs. current UCAM header "ms"  
+   speedLimit	INTEGER(0..200)		       OPTIONAL,  -- The variable speed limit if the alert is based on speed (e.g. CSW). Regional units KPH/MPH
+   speedAdvice INTEGER(0..200)            OPTIONAL,  -- Adivsed speed from GLOSA/Green-wave, green-speed applications
+   ttg         INTEGER(0..1000)          OPTIONAL,  -- Time to Green (seconds), for traffic light information, if presented to DRiver.
+   code        INTEGER(0..65535)         OPTIONAL,  -- Alert Code, like an ITIS Code, TIM/RSM
+   string      UTF8String (SIZE(1..500)) OPTIONAL,  -- ITIS String, or other regional details from the specific alert, or notes
 
 
 	/* optional Alert details, internal calculations, that may be supplied to ADAS, or may be required for testing
 		Can be required for complex use-csae testing */
 
-   id         OCTET STRING (SIZE(4))    OPTIONAL,  -- RV, VRU  or RSM Common container or TIM triggering this alert
+   id         OCTET STRING (SIZE(1..8))    OPTIONAL,  -- RV, VRU  or RSM Common container or TIM triggering this alert
    ttc        INTEGER(0..60000)         OPTIONAL,  -- Time to collision in milliseconds
    d2c        INTEGER(0..1000000)       OPTIONAL,  -- Distance(cm) to the hazard/intersection/RV of concern
    regID      INTEGER(0..65535)         OPTIONAL,  -- Regulatory ID relevant to this  alert (Road Regulator ID, etc)
    lane       INTEGER(0..255)           OPTIONAL,  -- Lane ID as used in a Spat/Map movement TODO: is apprach & lane both needed?
-   sig_grp    INTEGER(0..255)           OPTIONAL,  -- Signal Group Identifier if a RLVW, IMA or alert using Map/SPAT
+   group      INTEGER(0..255)           OPTIONAL,  -- Signal Group Identifier if a RLVW, IMA or alert using Map/SPAT
    approach   INTEGER(0..255)           OPTIONAL,  -- Intersection Access-point Approach identifier
  
    /* Debugging extras */
-   oem_ext    UTF8String (SIZE(1..200)) OPTIONAL,  -- Optional OEM debug additional info that can help root-cause issues.
+   oemExt     UTF8String (SIZE(1..200)) OPTIONAL,  -- Optional OEM debug additional info that can help root-cause issues.
 
    ...
 }
@@ -94,10 +94,10 @@ UCAM ::= SEQUENCE       {
    alt    INTEGER(-10000..600000) OPTIONAL,  -- Centimeters above sea level if relevant to any use-cases alerts 
    hpe    INTEGER (0..100000),               -- Estimated 2D horizontal position error in cm, One sigma Circular Error Probable
    head   INTEGER (0..359) ,                 -- HV/DUT vehicle at point UV was produced
-   vel    INTEGER(0..10000),                 -- cm/sec speed in heading  at point UCAM was produced, or of Alert if first alert included.
+   vel    INTEGER(0..16380),                 -- cm/sec speed in heading  at point UCAM was produced, or of Alert if first alert included.
    acc    INTEGER(-2000..2000),              -- vehicle axis longitudinal accel, in cm/s^2
    sw     UTF8String (SIZE(1..8)) OPTIONAL,  -- SUT master software version#, included only on enable and power-up
-   id     OCTET STRING (SIZE(4))  OPTIONAL,  -- linkage to the BSM/CAM/C-BSM temporary ID to the Ego DUT's pseudonym ID
+   id     OCTET STRING (SIZE(4..8))  OPTIONAL,  -- linkage to the BSM/CAM/C-BSM temporary ID to the Ego DUT's pseudonym ID
    alerts SEQUENCE (SIZE(1..16)) OF Alert OPTIONAL, -- if no alerts sequence, this is considered a "heartbeat"
 
    /* TBD2: should we have a counter of the number of unique, first/once alerts across all alert types, to check negative use cases */
