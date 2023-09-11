@@ -62,6 +62,31 @@ setInitialState                     MsgID ::= 1
 setUseCaseAnnouncementConfig        MsgID ::= 2
 
 
+-- Use Case Announcement(UCAM) configuration TCI command.
+-- configure the SUT to send/transmit Usecase Announcements to the specified destination.
+-- Default behavior if enabled is to send over TCI Response, but can also be sent via UDP, TCP, WSMP, GN, DSMP
+SetUseCaseAnnouncementConfig ::= SEQUENCE {
+   enableUcamMinutes	     INTEGER(0..3000), -- set to 0 to disable, persistent in SUT. SUT  automatically disables afer this.
+   repeatRateMillseconds  INTEGER(0..10000) OPTIONAL, -- if alert occuring, how often to UCAM; 0 disables Default value is 500ms (2Hz)
+   setSystemName          UTF8String (SIZE(1..8)) OPTIONAL,  -- Friendly SUT name, used in UCAM.  no default,if not set, UCAM "nam" is empty 
+   heartbeatSeconds	     INTEGER(0..300) OPTIONAL, -- even if no alerts, if UcamEnabled, UCAM heartbeat at least often (no alerts). Default=1 sec
+     
+   -- Optional , though generally default delivery of UCAM to the TE, (Typically over TCI, but can be UDP or TCP
+   wiredUcamDelivery       UcamNetworkType,                      --TCI UCAM's, disabled or TCP/UDP over Wi-Fi/Ethernet, etc.
+   wiredDestination        WiredNetworkDestination OPTIONAL,     --Excluded if wiredUcamDelivery is disabled or TCI
+
+   -- Wireless over the air (OTA) broadcast destination.  only wurekess tyoe at time. Can be instead or in conjunction with wirredDestination.
+   wirelessBroadcastEnable   BOOLEAN,
+   wirelessBroadcast         WirelessBroadcastConfig OPTIONAL,   --Excluded if wirelessBroadcastEnable is false
+   ...
+}
+(
+  (WITH COMPONENTS {..., wiredUcamDelivery( netDisable | netTci ), wiredDestination ABSENT})
+ |(WITH COMPONENTS {..., wiredUcamDelivery( netUdp | netTcp ), wiredDestination PRESENT})
+ |(WITH COMPONENTS {..., wirelessBroadcastEnable( FALSE ), wirelessBroadcast ABSENT})
+ |(WITH COMPONENTS {..., wirelessBroadcastEnable( TRUE ), wirelessBroadcast PRESENT})
+)
+
 -- other transports have various other value. 
 UcamNetworkType ::= ENUMERATED {
    netDisable      (0), -- Disabled, no wired netwok repsonse,  UCAM sent via some other method.
@@ -98,32 +123,6 @@ WirelessBroadcastConfig ::= SEQUENCE {
    otaIpDestPort           INTEGER(0..65535) OPTIONAL,        -- For UDP4/UDP6 if not broadcasting over WSMP/BTP/DSMP
    ...
 }
-
-
--- Use Case Announcement(UCAM) configuration TCI command.
--- configure the SUT to send/transmit Usecase Announcements to the specified destination.
--- Default behavior if enabled is to send over TCI Response, but can also be sent via UDP, TCP, WSMP, GN, DSMP
-SetUseCaseAnnouncementConfig ::= SEQUENCE {
-   enableUcamMinutes	  INTEGER(0..3000), -- set to 0 to disable, persistent in SUT. SUT  automatically disables afer this.
-   repeatRateMillseconds   INTEGER(0..10000) OPTIONAL, -- if alert occuring, how often to UCAM; 0 disables
-   setSystemName           UTF8String (SIZE(1..8)) OPTIONAL,  -- Friendly SUT name, used in UCAM 
-   heartbeatSeconds	  INTEGER(0..300) OPTIONAL, -- even if no alerts, if UcamEnabled, make heartbeat  at least evey heartbeat Seconds , which is alert "none"
-     
-   -- Optional , though generally default delivery of UCAM to the TE, (Typically over TCI, but can be UDP or TCP
-   wiredUcamDelivery       UcamNetworkType,                      --TCI UCAM's, disabled or TCP/UDP over Wi-Fi/Ethernet, etc.
-   wiredDestination        WiredNetworkDestination OPTIONAL,     --Excluded if wiredUcamDelivery is disabled or TCI
-
-   -- Wireless over the air (OTA) broadcast destination.  only one at time, can be instead or in conjunction with wirredDestination.
-   wirelessBroadcastEnable   BOOLEAN,
-   wirelessBroadcast         WirelessBroadcastConfig OPTIONAL,   --Excluded if wirelessBroadcastEnable is false
-   ...
-}
-(
-  (WITH COMPONENTS {..., wiredUcamDelivery( netDisable | netTci ), wiredDestination ABSENT})
- |(WITH COMPONENTS {..., wiredUcamDelivery( netUdp | netTcp ), wiredDestination PRESENT})
- |(WITH COMPONENTS {..., wirelessBroadcastEnable( FALSE ), wirelessBroadcast ABSENT})
- |(WITH COMPONENTS {..., wirelessBroadcastEnable( TRUE ), wirelessBroadcast PRESENT})
-)
 
 
 END
