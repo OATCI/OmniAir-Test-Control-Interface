@@ -107,6 +107,7 @@ AlertLevel ::= ENUMERATED {
 SystemEvent ::= ENUMERATED {
    boot       (0),   -- Sent once on safety application boot to help detect crash/restarts
    expired    (1),   -- Sent once, as last UCAM when the configured duration has elapsed.
+   off        (2),   -- Once, on App shutdown.  Safety application being disabled by driver, ignition, or similar
    ... 
 }
 END
