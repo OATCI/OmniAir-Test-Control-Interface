@@ -1,0 +1,19 @@
+{
+  "ver":0,
+  "seq":121,
+  "ms":6460,
+  "tot":32,
+  "lat":418925250,
+  "lon":124839023,
+  "hpe":154,
+  "head":119,
+  "vel":2400,
+  "acc":-2000,
+  "alerts":[
+    {
+      "state":"last",       -- this is the very last UCAM of this, alert has cleared and ended.
+      "omniAir":"RLVW",     -- Warning name needs to be consistent across all the first/ongoing/last
+      "dur":2000            -- event first triggered 2 seconds ago.
+    }
+  ]
+}
