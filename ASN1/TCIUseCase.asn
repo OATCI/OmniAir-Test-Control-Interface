@@ -36,10 +36,8 @@ SetInitialState FROM TCI-wsm
 TCIUseCase ::= CHOICE{
     request         [0] Request,
     response        [1] Response,
-    announcement    [2] UTF8String (SIZE(10..2884)), -- JSON JER as per use-case-announcement-message.asn
-                                                     -- 2884 is picked for OTA UDP via two PC5 segment/20mhz limit
-                                                     -- minus 40 Byte UDP6 header size.  TS/SUT for TCI transport will
-                                                     -- need a MTU large enough to handle on their network interfaces.
+    announcement    [2] UTF8String (SIZE(10..1445)),  -- JSON JER UCAM limited by 1500b TS/SUT UDP MTU
+                                                      -- If SUT UCAM JER is too large for one announcement, split into mutiple with fewer Alerts in each
     exception       [4] Exception,
     ...
 }
