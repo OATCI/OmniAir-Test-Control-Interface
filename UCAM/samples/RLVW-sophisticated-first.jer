@@ -1,0 +1,23 @@
+{
+  "ver":0,
+  "seq":100,
+  "ms":5260,
+  "tot":32,
+  "lat":418924150,
+  "lon":124837023,
+  "hpe":150,
+  "head":120,
+  "vel":1500,
+  "acc":-2000,
+  "alerts":[
+    {
+      "state":"first",
+      "omniAir":"RLVW",
+      "usecase":"acme CICAS",
+      "level":"advisory",
+      "dur":0,
+      "d2c":30000,
+      "approach":5
+    }
+  ]
+}

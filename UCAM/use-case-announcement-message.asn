@@ -1,0 +1,114 @@
+/* Copyright 2023 OmniAir Consortium Inc. All rights reserved.
+   Licensed http://www.apache.org/licenses/LICENSE-2.0 (the "License");
+   You may not use this file except in compliance with the License.  */
+
+UCAM DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+
+-- NOTE: terse identifier names for  compact JER human readable encodings to fit in smaller  MTU transports (e.g. TCI/WSMP)
+UCAM ::= SEQUENCE       {
+   ver    INTEGER (0..127),                  -- UCAM Version number, mandatory on every UCAM
+   nam    UTF8String (SIZE(1..8)) OPTIONAL,  -- Friendly SUT Vehicle Name 
+   seq    INTEGER (0..255),                  -- short sequence number. mandatory.  Increments and wraps.
+   ms     INTEGER(0..60000),                 -- time milliseconds of current minute, at which alert presented, or was ended
+   tot    INTEGER(0..999),                   -- Count of total number of unique Alerts of any Level that have  since stack start. 
+                                             -- set to zero on boot. No increment if AlertLevel changes. Useful for testing negative cases.
+   sys    SystemEvent OPTIONAL,              -- added if the safey system is booting, or expiring to indicate UCAM system events.
+   lat    INTEGER(-900000000..900000000),    -- in 1E7 degrees, position where alert first triggered, or was cleared, or if just ongoing.
+   lon    INTEGER(-1800000000..1800000000),  -- Longitude in customary Datum (WGS84	, GCJ02) * 1E7
+   alt    INTEGER(-10000..600000) OPTIONAL,  -- Centimeters above sea level if relevant to any use-cases alerts 
+   hpe    INTEGER (0..100000),               -- Estimated 2D horizontal position error in cm, One sigma Circular Error Probable
+   head   INTEGER (0..359) ,                 -- HV/DUT vehicle at point UV was produced
+   vel    INTEGER(0..16380),                 -- cm/sec speed in heading  at point UCAM was produced, or of Alert if first alert included.
+   acc    INTEGER(-2000..2000),              -- vehicle axis longitudinal accel, in cm/s^2
+   sw     UTF8String (SIZE(1..8)) OPTIONAL,  -- SUT master software version#, included only on enable and power-up
+   id     OCTET STRING (SIZE(4..8))  OPTIONAL,  -- linkage to the BSM/CAM/C-BSM temporary ID to the Ego DUT's pseudonym ID
+   alerts SEQUENCE (SIZE(1..16)) OF Alert OPTIONAL, -- if no alerts sequence, this is considered a "heartbeat"
+
+   ...
+}
+
+
+/* Alert details, part of the sequence of 1 to 16 alerts contained in the  UCAM,
+   contains many OPTIONAL fields for future use and more comprehensive testing.  However for the basic Omnaiir 780a/780b
+   testing,it is estimated that only the "omniAir" the count, hidden, and  "n"  are mandatory to support:
+	
+   "state" is not required, as a DUT for simplicity, but its recommneded for Vehicle to support,  Please.
+   However a SUT  may only send Alert, with the string, and no indication of whether it was first, ongoing, last.
+
+   For testing over-lapping, simultaneously   triggering alerts (e.g. a TIM and  a RLVW), the "hidden" indicates  which 
+   alerts are supressed/preempted by higher urgency alerts.
+
+   TBD1:  can we ask SUT to keep a per-alert counter, to help with negative-test cases?  (number of times each alert has triggered
+          since boot-up. 
+
+*/
+
+Alert ::= SEQUENCE       {
+   state       AlertState                OPTIONAL,  -- Alert ending, just triggered or ongoing.  Not required, but recommended
+   omniAir     UTF8String (SIZE(1..8)),             -- OmniAir standard 740a-OA required use-case alert names for 780a/b App tests
+   usecase     UTF8String (SIZE(1..15))  OPTIONAL,  -- Free-form App use-case name, OEM choice, as opposed to the OmniAir names.
+   level       AlertLevel                OPTIONAL,  -- Sub detail on the intensity of the warning. (Advisory, imminent) 
+   hidden      BOOLEAN                   OPTIONAL,  -- True if higher priority app preempted  and is more active to driver than this one
+   dur         INTEGER(0..60000)         OPTIONAL,  -- Duration elapsed time since first Alert, vs. current UCAM header "ms"
+                                                    -- "dur" is quite important for knowing when the alert first triggered.  if the AlertLevel changes
+                                                    -- then a new UCAM is made fot the new "level" and dur is reset.   
+   speedLimit	INTEGER(0..200)		     OPTIONAL,  -- The variable speed limit if the alert is based on speed (e.g. CSW). Regional units KPH/MPH
+   speedAdvice INTEGER(0..200)           OPTIONAL,  -- Adivsed speed from GLOSA/Green-wave, green-speed applications
+   ttg         INTEGER(0..1000)          OPTIONAL,  -- Time to Green (seconds), for traffic light information, if presented to DRiver.
+   code        INTEGER(0..65535)         OPTIONAL,  -- Alert Code, like an ITIS Code, TIM/RSM
+   string      UTF8String (SIZE(1..500)) OPTIONAL,  -- ITIS String, or other regional details from the specific alert, or notes
+
+
+	/* optional Alert details, internal calculations, that may be supplied to ADAS, or may be required for testing
+		Can be required for complex use-csae testing */
+
+   id         OCTET STRING (SIZE(1..8)) OPTIONAL,  -- RV, VRU  or RSM Common container or TIM triggering this alert
+   ttc        INTEGER(0..60000)         OPTIONAL,  -- Time to collision in milliseconds
+   d2c        INTEGER(0..1000000)       OPTIONAL,  -- Distance(cm) to the hazard/intersection/RV of concern
+   regID      INTEGER(0..65535)         OPTIONAL,  -- Regulatory ID relevant to this  alert (Road Regulator ID, etc)
+   lane       INTEGER(0..255)           OPTIONAL,  -- Lane ID as used in a Spat/Map movement TODO: is apprach & lane both needed?
+   group      INTEGER(0..255)           OPTIONAL,  -- Signal Group Identifier if a RLVW, IMA or alert using Map/SPAT
+   approach   INTEGER(0..255)           OPTIONAL,  -- Intersection Access-point Approach identifier
+ 
+   /* Debugging extras */
+   oemExt     UTF8String (SIZE(1..200)) OPTIONAL,  -- Optional OEM debug additional info that can help root-cause issues.
+
+   ...
+}
+
+/* AlertState is the state of each Alert in the alerts sequence, since a UCAM is generated each time an Alert starts/ends, state is set 
+   to "first" or "done" in those cases, and the location +{hpe, vel,head, etc| in the UCAM header is the location where that
+   Alert started/ended.  If simply "ongoing"  the "ms_before" explains how long since the first alert was generated, and the position
+   reported in the heading is just the location/time of the report.  UCAM may have been generated to indicate the first/done Alert
+   of another alert in the "alerts" sequence. 
+*/
+AlertState ::= ENUMERATED {
+   once       (1),   -- For an alert that presents once and only once, no concept of first/ongoing/done
+   first      (2),   -- This is the UCAM indicating the alert just started/triggered
+   ongoing    (3),   -- Periodically sent of alert continues to be sent, at configured interval (e.g. 1 sec)
+   up         (4),   -- same alert, ongoing, but Alert Level has moved "up" (e.g. advisory -> imminent)
+   down       (5),   -- Onoging alert, like "up" but in this case alert is reduced in Level
+   done       (6),   -- Alert is no longer active due to trigger conditions clearing
+   ...
+}
+
+/* Alert Level  that the safety algorithm was calculating, not all produce only imminent warnings.
+*/	
+AlertLevel ::= ENUMERATED {
+   internal       (0),   -- was not actually presented to a human but may have been quietly delivered to ADAS
+   informational  (1),
+   advisory       (2),   -- a non imminent advisory was presented driver
+   imminent       (3),  
+   ...
+}
+
+SystemEvent ::= ENUMERATED {
+   boot       (0),   -- Sent once on safety application boot to help detect crash/restarts
+   expired    (1),   -- Sent once, as last UCAM when the configured duration has elapsed.
+   off        (2),   -- Once, on App shutdown.  Safety application being disabled by driver, ignition, or similar
+   ... 
+}
+END
+
