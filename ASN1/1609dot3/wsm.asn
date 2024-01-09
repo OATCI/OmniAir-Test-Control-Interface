@@ -11,7 +11,7 @@ IMPORTS
 
 VarLengthNumber FROM CITSapplMgmtIDs {iso(1) standard(0) cits-applMgmt (17419) ids (1) version1 (1)} -- this is the p-encoded PSID
 
-EXT-TYPE, Extension,RefExt,c-CompactTimeConfidence,c-ChannelLoad, c-Reserved, c-TxPowerUsed80211, c-DataRate80211, c-ChannelNumber80211, ChannelNumber80211, DataRate80211, TXpower80211 FROM IEEE-1609-3-WEE {iso(1) identified-organization(3) ieee(111) standards-association-numbered-series-standards(2) wave-stds(1609) dot3(3) wee(1) version0(0)}
+EXT-TYPE, Extension,RefExt,c-CompactTimeConfidence,CompactTimeConfidence,c-ChannelLoad, c-Reserved, c-TxPowerUsed80211, c-DataRate80211, c-ChannelNumber80211, ChannelNumber80211, DataRate80211, TXpower80211 FROM IEEE-1609-3-WEE {iso(1) identified-organization(3) ieee(111) standards-association-numbered-series-standards(2) wave-stds(1609) dot3(3) wee(1) version0(0)}
 
 ;
 
