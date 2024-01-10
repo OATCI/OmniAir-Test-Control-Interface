@@ -49,6 +49,9 @@ Event ::= ENUMERATED {
     eDot3ChannelAssigned                (7),    -- Channel assigned as per WME-Notification.indication
     eDot3RequestMatchedAvailAppService  (8),    -- request matched with available application-service as per WME-Notification.indication
     eDot2VerificationCompleteWithResult (9),    -- message signature verification is complete
+    eDot2Dot1Initialized                (10),   -- status for ready to bootstrap
+    eDot2Dot1Enrolled                   (11),   -- enrollment certificate installed
+    eDot2Dot1Authorized                 (12),   -- authorization certficiate installed
     exception                           (15)    -- exception reported from IUT
 }
 
@@ -101,12 +104,12 @@ RadioParameters ::= SEQUENCE{ -- used in EventParams
 SecResultParams ::= SEQUENCE { -- used in EventParams
     securityResultCode      ResultCode,
                             -- All errors are lumped into single result code
-                            -- Specific cause of error to be described in the SecResultParams.description    
+                            -- Specific cause of error to be described in the SecResultParams.description
     description             OCTET STRING OPTIONAL,
     ...
 }
 
--- SecurityResultCode ::= ENUMERATED {     
+-- SecurityResultCode ::= ENUMERATED {
 --    success (1),
 --    inconsistentInputParameters (2),
 --    spduParsingInvalidInput (3),

@@ -1,0 +1,181 @@
+TCI-160921
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IMPORTS
+Exception,
+Response,
+MsgID FROM TCI-CommonTypes
+
+SetInitialState FROM TCI-wsm
+
+ResponseInfo FROM TCI-responseInfo
+
+Indication FROM TCI-indication
+
+;
+
+CtlSequenceNumber ::= INTEGER
+
+CertificateType ::= ENUMERATED {
+  explicit (0),
+  implicit (1),
+  ...
+}
+
+Butterfly ::= ENUMERATED {
+  none (0),
+  original (1),
+  unified (2),
+  compact-unified (3),
+  encryption-key (4),
+  ...
+}
+
+TCI160921 ::= CHOICE{
+  request      [0] Request, -- Add new request message types
+  response     [1] Response,
+  indication   [2] Dot2Dot1Indication,
+  responseInfo [3] Dot2Dot1ResponseInfo,
+  exception    [4] Exception,
+  ...
+}
+
+EnrollCertReqRequest ::= SEQUENCE {
+  cert-request-permissions   SEQUENCE OF INTEGER,
+  ...
+}
+
+EnrollmentCertificateRequest ::= SEQUENCE {
+  enrollmentCertificateRequest  VisibleString,
+  ...
+}
+
+-- RequestAuthCertificate ::= SEQUENCE {
+--  butterfly Butterfly,
+--  ...
+--}
+
+
+UnAuthorized ::= SEQUENCE {
+  butterfly Butterfly,
+  certificateType   CertificateType,
+
+  ...
+}
+
+UnEnrolled ::= SEQUENCE {
+  bootstrapDataUrl  VisibleString,
+  certificateType   CertificateType,
+  canonicalKey      VisibleString,
+  ...
+}
+
+
+UnInitialized ::= BOOLEAN
+Authorized    ::= BOOLEAN
+
+SetPKIState ::= CHOICE {
+  unInitialized    [0] UnInitialized,
+  unEnrolled       [1] UnEnrolled,
+  unAuthorized     [2] UnAuthorized,
+  authorized       [3] Authorized,
+  ...
+}
+
+DownloadCTLCertificate ::= SEQUENCE {
+  ctlSeriesId        VisibleString,
+  ctlSequenceNumber  CtlSequenceNumber OPTIONAL
+}
+
+DownloadCRLCertificate ::= SEQUENCE {
+  cracaId      VisibleString,
+  crlSeries    VisibleString
+}
+
+CTLAddElector ::= SEQUENCE {
+  ctlSeriesId VisibleString,
+  ctlSequenceNumber  CtlSequenceNumber OPTIONAL
+}
+
+CTLRemoveElector ::= SEQUENCE {
+  ctlSeriesId VisibleString,
+  ctlSequenceNumber  CtlSequenceNumber OPTIONAL
+}
+
+CTLAddRoot ::= SEQUENCE {
+  ctlSeriesId VisibleString,
+  ctlSequenceNumber  CtlSequenceNumber OPTIONAL
+}
+
+CTLRemoveRoot ::= SEQUENCE {
+  ctlSeriesId VisibleString,
+  ctlSequenceNumber  CtlSequenceNumber OPTIONAL
+}
+
+-- DownloadAuthCertificate ::= SEQUENCE {
+--  filename  VisibleString
+--}
+
+Request ::=  SEQUENCE {
+  messageId   MESSAGE-ID-AND-TYPE.&id({MessageTypes}),
+  value       MESSAGE-ID-AND-TYPE.&Type({MessageTypes}{@.messageId}),
+  ...
+}
+
+MESSAGE-ID-AND-TYPE ::= CLASS {
+  &id    MsgID UNIQUE,
+  &Type
+} WITH SYNTAX {&Type IDENTIFIED BY &id}
+
+MessageTypes MESSAGE-ID-AND-TYPE ::= {
+-- imported from TCI-wsm module
+  { SetInitialState  IDENTIFIED BY setInitialState } |
+  { SetPKIState IDENTIFIED BY setPKIState} |
+  { DownloadCTLCertificate IDENTIFIED BY downloadCTLCertificate} |
+  { DownloadCRLCertificate IDENTIFIED BY downloadCRLCertificate} |
+  -- { RequestAuthCertificate IDENTIFIED BY requestAuthCertificate} |
+  -- { DownloadAuthCertificate IDENTIFIED BY downloadAuthCertificate} |
+  { CTLAddElector IDENTIFIED BY ctlAddElector} |
+  { CTLRemoveElector IDENTIFIED BY ctlRemoveElector} |
+  { CTLAddRoot IDENTIFIED BY ctlAddRoot} |
+  { CTLRemoveRoot IDENTIFIED BY ctlRemoveRoot}
+}
+
+setInitialState                 MsgID ::= 1
+setPKIState                     MsgID ::= 2
+downloadCTLCertificate          MsgID ::= 3
+downloadCRLCertificate          MsgID ::= 4
+-- requestAuthCertificate          MsgID ::= 5
+-- downloadAuthCertificate         MsgID ::= 6
+ctlAddElector                   MsgID ::= 7
+ctlRemoveElector                MsgID ::= 8
+ctlAddRoot                      MsgID ::= 9
+ctlRemoveRoot                   MsgID ::= 10
+
+Dot2Dot1Indication ::= Indication (WITH COMPONENTS {
+  radio,
+  event (
+    eDot2Dot1Initialized |
+    eDot2Dot1Enrolled |
+    eDot2Dot1Authorized |
+    exception
+  ),
+  eventParams (
+    WITH COMPONENTS {service} |  -- Add appropriate event params for Dot2Dot1
+    WITH COMPONENTS {wsm} |
+    WITH COMPONENTS {ip} |
+    WITH COMPONENTS {security}
+  ) OPTIONAL,
+  pdu  OPTIONAL,
+  exception OPTIONAL
+})
+
+Dot2Dot1ResponseInfo ::= ResponseInfo (WITH COMPONENTS {
+  msgID,
+  resultCode,
+  info (WITH COMPONENTS {ipv6InterfaceInfo}) OPTIONAL, -- Update InfoContent with security related parameters?
+  exception OPTIONAL
+})
+
+END
