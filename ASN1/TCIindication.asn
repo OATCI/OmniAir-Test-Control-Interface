@@ -49,6 +49,7 @@ Event ::= ENUMERATED {
     eDot3ChannelAssigned                (7),    -- Channel assigned as per WME-Notification.indication
     eDot3RequestMatchedAvailAppService  (8),    -- request matched with available application-service as per WME-Notification.indication
     eDot2VerificationCompleteWithResult (9),    -- message signature verification is complete
+	  eDot2Dot1                           (10),   -- dot2dot1 indication received 
     exception                           (15)    -- exception reported from IUT
 }
 
@@ -58,7 +59,8 @@ EventParams ::= CHOICE{
     ip              [2]     IpParameters,
     radioframe      [3]     RadioParameters,
     security        [4]     SecResultParams,
-    ...
+    ...,
+    dot2dot1        [5]     Dot2Dot1Params
 }
 
 Pdu ::= SEQUENCE {
@@ -104,6 +106,24 @@ SecResultParams ::= SEQUENCE { -- used in EventParams
                             -- Specific cause of error to be described in the SecResultParams.description    
     description             OCTET STRING OPTIONAL,
     ...
+}
+
+Dot2Dot1Params ::= SEQUENCE {
+    state                   Dot2Dot1State,
+    ...
+}
+
+Dot2Dot1State ::= ENUMERATED {
+    eInitialised            (1),
+    eEnrolled               (2),
+    eAuthReqResp            (3),
+    eAuthDownResp           (4),
+    eProvisioned            (5),
+    eCcfDownResp            (6),
+    eCrlDownResp            (7),
+    eMbrTriggeredResp       (8),
+    ...,
+    exception               (15) --exception added with large value to allow for future expansion
 }
 
 -- SecurityResultCode ::= ENUMERATED {     

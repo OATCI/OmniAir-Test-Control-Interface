@@ -1,0 +1,89 @@
+TCI-160921
+DEFINITIONS AUTOMATIC TAGS ::= 
+BEGIN
+
+IMPORTS
+Exception,
+Response, 
+MsgID FROM TCI-CommonTypes
+
+ResponseInfo FROM TCI-responseInfo
+
+Indication FROM TCI-indication
+
+;
+
+
+TCI160921 ::= CHOICE{
+  request          [0] Request160921, -- Add new request message types
+  response         [1] Response,
+  indication       [2] Dot2Dot1Indication,
+  responseInfo     [3] Dot2Dot1ResponseInfo,
+  exception        [4] Exception,
+  ...
+}
+
+SetInitialize ::= SEQUENCE {
+  bootstrapUrl     VisibleString,
+  ...
+}
+
+DownloadCcf ::= SEQUENCE {
+  ctlSeriesId      VisibleString,
+  ...
+}
+
+DownloadCrl ::= SEQUENCE {
+  cracaId          VisibleString,
+  ...
+}
+
+TriggerMbr ::= BOOLEAN
+
+
+
+Request160921 ::=  SEQUENCE {
+  messageId   MESSAGE-ID-AND-TYPE160921.&id({MessageTypes}),
+  value       MESSAGE-ID-AND-TYPE160921.&Type({MessageTypes}{@.messageId}),
+  ...
+}
+
+MESSAGE-ID-AND-TYPE160921 ::= CLASS {
+  &id    MsgID UNIQUE,
+  &Type
+} WITH SYNTAX {&Type IDENTIFIED BY &id}
+
+MessageTypes MESSAGE-ID-AND-TYPE160921 ::= {
+  { SetInitialize  IDENTIFIED BY setInitialize } |
+  { DownloadCcf  IDENTIFIED BY downloadCcf } |
+  { DownloadCrl  IDENTIFIED BY downloadCrl } |
+  { TriggerMbr  IDENTIFIED BY triggerMbr }
+}
+
+setInitialize                 MsgID ::= 1
+downloadCcf                   MsgID ::= 2
+downloadCrl                   MsgID ::= 3
+triggerMbr                    MsgID ::= 4
+
+
+
+Dot2Dot1Indication ::= Indication (WITH COMPONENTS {
+  radio,
+  event (
+    eDot2Dot1
+  ),
+  eventParams (
+    WITH COMPONENTS {dot2dot1}
+  ) OPTIONAL,
+  pdu  OPTIONAL,
+  exception OPTIONAL
+})
+
+Dot2Dot1ResponseInfo ::= ResponseInfo (WITH COMPONENTS {
+  msgID,  
+  resultCode,
+  info (WITH COMPONENTS {ipv6InterfaceInfo}) OPTIONAL, -- Update InfoContent with security related parameters?
+  exception OPTIONAL
+})
+
+END
