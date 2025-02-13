@@ -41,9 +41,8 @@ Frame ::=CHOICE {
     d16093cv2x [7] TCI16093PC5,
     d31611     [8] TCI31611,
     proxyCv2x  [16] TCIPROXYCV2X,
-    driveCast  [17] TCIDriveCast, -- Casts test drives sensor &  events into vehicle
-    useCase    [18] TCIUseCase    -- UCAM config and transport for application testing.
+    driveCast  [17] TCIDriveCast, -- "Casts" (injects) test drives, remote vehicles, sensor &  events System Under Test
+    useCase    [18] TCIUseCase    -- Use Case Announcment Message (UCAM) config and transport for application testing.
 }
-
 
 END
