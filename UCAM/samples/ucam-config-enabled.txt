@@ -1,0 +1,15 @@
+value1 TCIMsg ::= {
+  version currentVersion,
+  time 0,
+  frame useCase : request : {
+    messageId 2,
+    value SetUseCaseAnnouncementConfig : {
+      enableUcamMinutes 480,
+      repeatRateMillseconds 500,
+      setSystemName "acme1",
+      heartbeatSeconds 2,
+      wiredUcamDelivery netDisable,
+      wirelessBroadcastEnable FALSE
+    }
+  }
+}

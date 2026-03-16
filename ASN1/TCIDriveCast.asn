@@ -1,0 +1,146 @@
+/* Copyright 2023 OmniAir Consortium Inc. All rights reserved.
+   Licensed http://www.apache.org/licenses/LICENSE-2.0 (the "License");
+   You may not use this file except in compliance with the License.  */
+   
+/*
+	Purpose: DriveCast univeral simulated drive and sensor injection system for testing. 
+	Proposed by Marben-Products and Qualcomm
+
+	SetUniversalDriveSimControl configures the SUT Vehicle ADAS or OBU to take a blend of supplied simulated
+    sensor (optionally including GNSS ) data to use as the vehicles own stream, replacing hardware or other
+    vehicle sensor systems (like Dead-reckoning/GNSS)
+
+	NOTE: System Under Test(SUT) likely begins normal "mission mode operation on system start, with or without DriveCast injections
+		Whether or not SUT is producing V2X beacons from ITS stack is separate concern, may or may not be stopped.
+		If DriveCast injection data is provided, the SUT is expected to use the supplied stimulus data
+		for applications, alerts, as well as any V2X message production (ETSI ITS CAM, BSM, C-BSM)
+	NOTE: SetUniversalDriveSimEgoData will be sent to the SUT at typically 10 Hz, but OBU SUT will use most recent data supplied to build safety messages (BSM/CAM) on its own schedule.
+		Rate could be higher or lower, but  BSM/CAM produced will just always use latest data, and should apply typical rate-generation/congestion control policy
+	TBD2: Since CV2X requires GPS, SUTs can use timestamp from GPS. SetUniversalDriveSimConfig's use3dPosition can control whether SUT will use
+		position and position error confidence/ellipse from SetUniversalDriveSimEgoData?
+
+	TBD5: Suggest if the TE is adjusting tempID , SUT should pseudonym change. useful for congestion and other testing.
+	TBD6: should there be a timeout/error state, if TE fails to feed sim data on time?
+	NOTE: DriveCast useful to test safety beacon production (BSM/CAM/DENM) as well as testing safety applications,
+         regardless of whether the SUT vehicle is V2X enabled or not.
+*/
+
+TCI-DriveCast
+
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IMPORTS
+Response,
+Exception,
+MsgID FROM TCI-CommonTypes
+
+SetInitialState FROM TCI-wsm;
+
+TCIDriveCast ::= CHOICE{
+    request         [0] Request,
+    response        [1] Response,
+    exception       [4] Exception,
+    ...
+}
+
+Request ::=  SEQUENCE {
+    messageId   MESSAGE-ID-AND-TYPE.&id({MessageTypes}),
+    value       MESSAGE-ID-AND-TYPE.&Type({MessageTypes}{@.messageId}),
+    ...
+}
+
+MESSAGE-ID-AND-TYPE ::= CLASS {
+    &id    MsgID UNIQUE,
+    &Type
+} WITH SYNTAX {&Type IDENTIFIED BY &id}
+
+MessageTypes MESSAGE-ID-AND-TYPE ::= {
+    { SetInitialState IDENTIFIED BY setInitialState} |
+    { SetUniversalDriveSimControl IDENTIFIED BY setUniversalDriveSimControl} |
+    { SetUniversalDriveSimEgoData IDENTIFIED BY setUniversalDriveSimEgoData	}
+}
+
+setInitialState                     MsgID ::= 1
+setUniversalDriveSimControl         MsgID ::= 2
+setUniversalDriveSimEgoData         MsgID ::= 3
+
+
+-- configure any aspects of the Universal Simulation data source. must be enabled by TE on each power-up
+-- before the DriveCast behavior can be expected to apply to Ego.
+-- without enabling, the setUniversalDriveSimEgoData is invalid, and unsused.
+SetUniversalDriveSimControl ::= SEQUENCE {
+	 enabled        BOOLEAN, -- Feature flag expectation for SetUniversalDriveSimEgoData arriving 
+     gcj02Transform BOOLEAN OPTIONAL, -- transofrm the DriveCast data into GCJ02 coordinates(China) as if lat/lon were WGS84.
+     egoConfig       SetUniversalDriveSimConfig OPTIONAL, -- flags to control which DriveCast elements to use as simulation
+                                                         -- If egoConfig missing, assumme intention is to use everything possible.
+
+     -- add aby other policy flags about expected SUT behavior in this SIM mode.
+    ...
+}
+
+/*
+   Configure the behavior on what to do with Univeral BSM/CAM's being feed  into SUT
+   specifically which data elements to use, from Test equiepemnt, vs, CAN/GNSS/Sensors, or being supplied via DriveCast injections
+   a "true" on any of these optional booleans indicates the SUT will cease using data from natural mission mode sources,
+
+   configures the device to use any given group of data, and the related uncertanties/confidence from the "SetUniversalDriveSimEgoData" 
+   encoded octet stream  as the SUT's own, as if it came from the vehicle's sensors, data-bus, GNSS, etc for all ITS stack/application uses of such data.
+   presence of all bits indicates, all elements in Universal feed will be used when present/populated.
+   each of these flags set which group of data from the DriveCast CAM/DENM/BSM should be used as the Ego's own data.
+   TBD , create preset groups enum for most common combinations
+         For example: 
+              preconfig-B: GNSS from live(SV-simulator + events/lights from sim)
+              preconfig-C: GNSS for Lat,long speed,  but Accel & events, etc all from DriveCast.
+*/
+SetUniversalDriveSimConfig ::= BIT STRING {
+    useEverything             (0),  -- SUT takes uses all possible DriveCast as its own. Default policy if no SetUniversalDriveSimConfig
+    useTimestamp              (1),  -- will adjust ego device clock to the time from the supplied Ego Data,e.g. secMark DSECOND (After converting to UTC)
+    useTemporaryId            (2),  -- take tempID of Universal DriveCast feed
+    use3dPosition             (3),  -- 3D position and position error confidence/ellipse
+    useVelocities             (4),  -- assumes veolicties/speeds  and related  confidence/uncertainties from the EgoData
+    useHeading                (5),  -- heading and heading confidence
+    useAccelerations          (6),  -- longitudinal, lateral, vertical, Yaw rates
+    useEventFlags             (7),  -- all event flags applied from BSM/CAM to Ego as if came from CAN bus
+    useLights                 (8),  -- all light data
+    usePathHistory            (9),  -- absorbe the PH fro DriveCast "as is" otherwise SUT expected to produce from supplied data.
+    usePathPrediction         (10), -- Take the PP from the cast feed, rather than CAN/ITS or calculating it own own.
+    useVehControls            (11), -- inclues steering wheel angle, throttle, PRNDL gear info, and related confidence
+    usePathBrakeData          (12),
+    useVehTypeAndRoles        (13), -- any information supplied about the vehicle type and what role its functioning as.
+    useEmergencyVehicleData   (14), -- anything related to lighs, sirens, incidents
+    useVehId	                 (15), -- absorb vehicle static data including class, length, width, height, bumper height, VIN,mass, turn radius, etc from EgoData
+    useOccupantInfo           (16), -- take occupent count, drivers license(China), from EgoData
+    useProtectedZone          (17), -- take protected zone, such as ETSI-CEN tolling containers from the Cast ETSI CAM
+    reserved18                (18),  
+    reserved19                (19),  
+    reserved20                (20),  
+    reserved21                (21)
+}
+
+
+-- Used in the setUniversalDriveSimEgoData
+-- for any given OCTET string of pre-encoded data, this explains the type of the data source.
+-- Intention is to mak ethis testing framework globally consistent. 
+DriveCastDialect ::= ENUMERATED {
+   saeBsm          (0),  -- SAE J2735 UPER encoded, no 1609 headers, unsecured
+   chinaBsm        (1),  -- China BSM, no UPER encoded, no DSMP headers, unsecured
+   etsiItsCam      (2),  -- UPER CAM without any BTP/Geonetworking headers, unsecured
+   etsiItsDenm     (3),  -- UPER DENM without any BTP/Geonetork headers, unsecured
+   ...
+}
+
+
+
+-- use this BSM/CAM data as your own for purposes of application alerts and BSM composition
+-- Data is an encoded message, without WSMP/GEonetowrk/DSMP transport
+-- This message will typically be supplied by TE to SUT every 100ms, to simulate CAN/GNSS sources
+SetUniversalDriveSimEgoData ::= SEQUENCE {
+    egoMessageType  DriveCastDialect OPTIONAL,   -- TE should  set this to give SUT a tip on what message is coming.
+    egoData         OCTET STRING(SIZE(0..2304)),  -- UPER encoded BSM, China BSM, ETSI-CAM, ETSI-DENM
+    triggerSendNow  BOOLEAN OPTIONAL, -- assumed false if not present.  will trigger a critical BSM/DENM/CAM produced now.           
+    ...
+}
+
+
+END
