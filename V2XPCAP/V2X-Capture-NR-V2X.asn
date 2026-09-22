@@ -1,0 +1,102 @@
+--
+-- V2X Capture Metadata Profile
+-- NR-V2X RAT-specific summary, extensible beyond Release 16.
+--
+-- NR sidelink first-stage SCI is associated with PSCCH. Second-stage
+-- SCI is associated with PSSCH. This profile retains capture-side
+-- summaries only; it does not require raw RLC/PDCP bytes, transport
+-- block records, segment descriptors, or HARQ-event lists.
+--
+V2X-Capture-NR-V2X
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  nrV2x(7) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+IMPORTS
+    Availability, MeasurementValue, StatusBoolean,
+    ExtensionContainers
+FROM V2X-Capture-Common;
+-- PC5 Layer-2 identifiers belong in this NR-specific branch. They are
+-- not common V2X identifiers. They shall not be confused with
+-- Layer-1 identifiers that can occur in SCI for filtering or
+-- scheduling.
+NrPc5Addressing ::= SEQUENCE {
+    -- Source PC5 Layer-2 ID, when exposed by NR sidelink stack.
+    sourceLayer2Id        OCTET STRING (SIZE(3)) OPTIONAL,
+    -- Destination PC5 Layer-2 ID, when exposed by NR sidelink stack.
+    destinationLayer2Id   OCTET STRING (SIZE(3)) OPTIONAL,
+    extensions            ExtensionContainers OPTIONAL,
+    ...
+}
+-- NR PC5 QoS is based on PC5 QoS flows. PPPP is not an NR PC5 field.
+-- This compact observation does not reproduce a full PC5 QoS
+-- flow definition.
+NrPc5QosObservation ::= SEQUENCE {
+    -- PC5 QoS identifier/codepoint, if exposed.
+    pqi                   MeasurementValue OPTIONAL,
+    -- PC5 QoS flow identifier, if exposed.
+    pqfi                  MeasurementValue OPTIONAL,
+    -- Priority level; source/profile documents its scale and
+    -- semantics.
+    priorityLevel         MeasurementValue OPTIONAL,
+    extensions            ExtensionContainers OPTIONAL,
+    ...
+}
+NrSciStage1Observation ::= SEQUENCE {
+    availability           Availability,
+    -- Decoded stage-1 SCI priority, distinct from PC5 QoS priority.
+    priority               MeasurementValue OPTIONAL,
+    -- Decoded stage-1 SCI frequency-resource codepoint.
+    frequencyResource      MeasurementValue OPTIONAL,
+    -- Decoded stage-1 SCI time-resource codepoint.
+    timeResource           MeasurementValue OPTIONAL,
+    -- Decoded stage-1 SCI modulation/coding codepoint.
+    mcs                    MeasurementValue OPTIONAL,
+    -- Decoded stage-1 SCI reservation-period codepoint.
+    reservationPeriod      MeasurementValue OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+-- sourceLayer1Id and destinationLayer1Id are SCI-side Layer-1 values.
+-- They are not the PC5 Layer-2 identifiers in NrPc5Addressing.
+NrSciStage2Observation ::= SEQUENCE {
+    availability           Availability,
+    -- Decoded stage-2 SCI HARQ process identifier/codepoint.
+    harqProcessId          MeasurementValue OPTIONAL,
+    -- Decoded stage-2 SCI new-data-indicator codepoint.
+    ndi                    MeasurementValue OPTIONAL,
+    -- Decoded stage-2 SCI redundancy-version codepoint.
+    rv                     MeasurementValue OPTIONAL,
+    -- SCI-side Layer-1 source identifier; not PC5 Layer-2 ID.
+    sourceLayer1Id         MeasurementValue OPTIONAL,
+    -- SCI-side Layer-1 destination identifier; not PC5 Layer-2 ID.
+    destinationLayer1Id    MeasurementValue OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+-- A compact summary for the logical packet; it is not a
+-- physical-event trace.
+NrLowerLayerSummary ::= SEQUENCE {
+    -- Whether HARQ was used for this logical packet.
+    harqUsed               StatusBoolean OPTIONAL,
+    -- Number of known HARQ transmissions, if source supplies a count.
+    harqTransmissionCount MeasurementValue OPTIONAL,
+    -- Number of known RLC segments summarized by this logical packet.
+    rlcSegmentCount        MeasurementValue OPTIONAL,
+    -- Reported RLC error count associated with this logical packet.
+    rlcErrorCount          MeasurementValue OPTIONAL,
+    -- Reported PDCP error count associated with this logical packet.
+    pdcpErrorCount         MeasurementValue OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+NrV2xMetadata ::= SEQUENCE {
+    releaseIndicator       INTEGER (15..255) OPTIONAL,
+    pc5Addressing          NrPc5Addressing OPTIONAL,
+    pc5Qos                NrPc5QosObservation OPTIONAL,
+    firstStageSci          NrSciStage1Observation OPTIONAL,
+    secondStageSci         NrSciStage2Observation OPTIONAL,
+    lowerLayerSummary      NrLowerLayerSummary OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+END

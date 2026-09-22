@@ -1,0 +1,163 @@
+--
+-- V2X Capture Metadata Profile
+-- Common identifiers, state, payload, and extension types.
+--
+-- This profile is an open metadata profile for existing pcapng files.
+-- It does not modify pcapng or any on-air V2X protocol.
+--
+-- OER is the single mandatory-to-support encoding for the top-level
+-- V2XCaptureMetadata object. Extension values are either OER values
+-- specified by an extension definition, or opaque values.
+--
+V2X-Capture-Common
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  common(1) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+-- The OID arc above is a draft placeholder. Replace it before
+-- release.
+-- A record is unique within a capture session.
+RecordId ::= INTEGER (0..18446744073709551615)
+-- A writer creates one random or otherwise collision-resistant value
+-- for each capture session. It is a required primary join-key
+-- component for a correlated post-capture annotation.
+CaptureSessionId ::= OCTET STRING (SIZE(16))
+ReceiverId ::= OCTET STRING (SIZE(1..64))
+InterfaceId ::= OCTET STRING (SIZE(1..64))
+CorrelationId ::= OCTET STRING (SIZE(1..32))
+-- RAT used for the logical V2X packet represented by this record.
+V2XTechnology ::= ENUMERATED {
+    -- IEEE 802.11p / DSRC packet, normally with native Radiotap.
+    ieee80211pDsrc(0),
+    -- Japan ARIB STD-T760 ITS-Connect packet.
+    aribStdT760ItsConnect(1),
+    -- LTE sidelink V2X packet.
+    lteV2x(2),
+    -- NR sidelink V2X packet.
+    nrV2x(3),
+    -- A RAT outside the enumerated interoperable branches.
+    other(254),
+    -- RAT could not be determined by the producer.
+    unknown(255)
+}
+-- Direction of the represented logical packet at this observer.
+Direction ::= ENUMERATED {
+    -- Packet was received from air or a radio/modem receive export.
+    receive(0),
+    -- Packet was transmitted, scheduled, or submitted by this
+    -- observer.
+    transmit(1),
+    -- Passive observation with no asserted Rx versus Tx direction.
+    observe(2),
+    -- Direction is not known by the capture producer.
+    unknown(255)
+}
+-- Availability qualifies a value. A producer shall not use a numeric
+-- zero, an empty string, or another ordinary value as an
+-- unavailable sentinel. When availability is not observed, derived,
+-- or estimated, the related value field should be absent.
+Availability ::= ENUMERATED {
+    -- Directly reported by source hardware, software, or a sensor.
+    observed(0),
+    -- Deterministically computed from other reported values.
+    derived(1),
+    -- Inferred using a model or calculation with uncertainty.
+    estimated(2),
+    -- Potentially meaningful, but no value exists for this record.
+    notAvailable(3),
+    -- Capture path does not expose the value.
+    notExposed(4),
+    -- Value has no meaning for this packet, RAT, or direction.
+    notApplicable(5),
+    -- Bytes/data existed but producer did not decode the value.
+    notDecoded(6),
+    -- Producer cannot state which availability condition applies.
+    unknown(255)
+}
+-- The unit and valid range of value are defined by its containing
+-- field.
+MeasurementValue ::= SEQUENCE {
+    availability       Availability,
+    value              INTEGER OPTIONAL,
+    ...
+}
+StatusBoolean ::= SEQUENCE {
+    availability       Availability,
+    value              BOOLEAN OPTIONAL,
+    ...
+}
+-- General classification of the represented payload.
+PayloadKind ::= ENUMERATED {
+    -- Payload is identified as an IP-family payload.
+    ip(0),
+    -- Payload is a named non-IP family; see nonIpFamilyId.
+    nonIp(1),
+    -- Capture retains only raw link-layer packet data.
+    rawLinkLayer(2),
+    -- Capture producer cannot classify the payload.
+    unknown(255)
+}
+-- A namespace identifies the registry in which familyId is assigned.
+-- It prevents a receiver from inferring a non-IP family merely
+-- because an IP header is absent.
+NonIpFamilyId ::= SEQUENCE {
+    familyId           INTEGER (0..65535),
+    namespace          OCTET STRING (SIZE(1..32)) OPTIONAL,
+    ...
+}
+-- This is RAT-neutral payload classification only. 3GPP PC5 Layer-2
+-- identifiers and PPPP are not common fields. They are represented in
+-- the LTE-V2X and NR-V2X technology branches. Those branches
+-- define their semantics and sizes.
+PayloadDescriptor ::= SEQUENCE {
+    payloadKind        PayloadKind,
+    nonIpFamilyId      NonIpFamilyId OPTIONAL,
+    psid               INTEGER (0..4294967295) OPTIONAL,
+    ...
+}
+-- Encoding of extension value. The top-level metadata object is
+-- always
+-- OER; this enum applies only to optional extension payload octets.
+ExtensionEncoding ::= ENUMERATED {
+    -- Bytes are opaque to the base profile and extension-unaware
+    -- tools.
+    opaque(0),
+    -- Bytes are OER for the ASN.1 type defined by extensionId.
+    oer(1),
+    -- Bytes are UPER for the ASN.1 type defined by extensionId.
+    uper(2)
+}
+
+-- Each extensionId identifies its extension definition and value
+-- type.
+ExtensionValue ::= SEQUENCE {
+    -- Identifier assigned in the applicable regional/manufacturer
+    -- registry.
+    extensionId        INTEGER (0..65535),
+    -- Indicates how the extension definition encodes value octets.
+    encoding           ExtensionEncoding,
+    -- Encoded bytes; unknown extensions can be retained or safely
+    -- skipped.
+    value              OCTET STRING (SIZE(0..65535)),
+    ...
+}
+RegionalExtension ::= SEQUENCE {
+    regionCode         OCTET STRING (SIZE(1..16)),
+    extensions         SEQUENCE (SIZE(1..MAX)) OF ExtensionValue,
+    ...
+}
+ManufacturerExtension ::= SEQUENCE {
+    manufacturerId     OCTET STRING (SIZE(1..64)),
+    extensions         SEQUENCE (SIZE(1..MAX)) OF ExtensionValue,
+    ...
+}
+-- Regional and manufacturer extension spaces are intentionally
+-- distinct.
+ExtensionContainers ::= SEQUENCE {
+    regional           SEQUENCE (SIZE(0..MAX)) OF RegionalExtension
+                       OPTIONAL,
+    manufacturer       SEQUENCE (SIZE(0..MAX)) OF
+        ManufacturerExtension
+                       OPTIONAL,
+    ...
+}
+END

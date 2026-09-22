@@ -1,0 +1,70 @@
+--
+-- V2X Capture Metadata Profile
+-- Top-level metadata object for one logical V2X packet.
+--
+-- OER is mandatory to support for V2XCaptureMetadata. A writer puts
+-- one OER encoding in the profile-defined EPB custom option when the
+-- observation is available at write time. The EPB packet data remains
+-- native captured bytes. A post-capture annotation uses a correlated
+-- profile custom block or companion stream keyed by sessionId +
+-- recordId.
+--
+
+V2X-Capture-Record
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  record(8) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+IMPORTS
+    RecordId, CaptureSessionId, CorrelationId, V2XTechnology,
+    Direction, PayloadDescriptor, ExtensionContainers
+FROM V2X-Capture-Common
+
+    ReceiveObservation, TransmitObservation
+FROM V2X-Capture-Observer
+
+    AnalysisAnnotations
+FROM V2X-Capture-Analysis
+
+    DsrcMetadata
+FROM V2X-Capture-DSRC
+
+    AribT760Metadata
+FROM V2X-Capture-ARIB-T760
+
+    LteV2xMetadata
+FROM V2X-Capture-LTE-V2X
+
+    NrV2xMetadata
+FROM V2X-Capture-NR-V2X;
+
+TechnologyMetadata ::= CHOICE {
+    dsrc                   DsrcMetadata,
+    aribT760               AribT760Metadata,
+    lteV2x                 LteV2xMetadata,
+    nrV2x                  NrV2xMetadata,
+    other                  OCTET STRING (SIZE(0..65535)),
+    ...
+}
+
+-- sessionId and recordId are mandatory because they are the profile's
+-- primary semantic correlation key. correlationId is supplemental
+-- only. For receive direction, receiveObservation should be present.
+-- For transmit direction, transmitObservation should be present.
+V2XCaptureMetadata ::= SEQUENCE {
+    profileVersion         INTEGER (1..255),
+    sessionId              CaptureSessionId,
+    recordId               RecordId,
+    correlationId          CorrelationId OPTIONAL,
+    technology             V2XTechnology,
+    direction              Direction,
+    payload                PayloadDescriptor OPTIONAL,
+    receiveObservation     ReceiveObservation OPTIONAL,
+    transmitObservation    TransmitObservation OPTIONAL,
+    technologyMetadata     TechnologyMetadata OPTIONAL,
+    analysis               AnalysisAnnotations OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+
+END

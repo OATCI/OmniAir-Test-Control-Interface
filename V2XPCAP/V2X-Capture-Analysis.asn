@@ -1,0 +1,160 @@
+--
+-- V2X Capture Metadata Profile
+-- Security, relevance, consistency, MBD, and application annotations.
+--
+-- These are receiver or analyzer conclusions. They are never
+-- on-air data
+-- and shall not be mixed with a signed payload or treated as its
+-- contents.
+--
+
+V2X-Capture-Analysis
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  analysis(3) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+IMPORTS
+    ExtensionContainers
+FROM V2X-Capture-Common;
+
+-- Result of one analysis category. attempted/processed are separate
+-- so no evaluation, incomplete work, and completed work are
+-- distinguishable.
+ProcessingResult ::= ENUMERATED {
+    -- No evaluation was performed.
+    notAttempted(0),
+    -- Evaluation completed without a detected failure in this
+    -- category.
+    passed(1),
+    -- Evaluation completed and found at least one failure.
+    failed(2),
+    -- Evaluation ran but no definitive conclusion was possible.
+    inconclusive(3),
+    -- Inputs or capability needed for evaluation were unavailable.
+    unavailable(4),
+    -- Category does not apply to this represented packet.
+    notApplicable(5),
+    -- Producer cannot determine the processing result.
+    unknown(255)
+}
+
+-- attempted states whether evaluation was requested. processed states
+-- whether it reached a result. The result remains explicit in all
+-- cases.
+ProcessingStatus ::= SEQUENCE {
+    attempted              BOOLEAN DEFAULT FALSE,
+    processed              BOOLEAN DEFAULT FALSE,
+    result                 ProcessingResult,
+    ...
+}
+
+-- A set bit means the common failure was observed. This compact
+-- bitmap
+-- does not create a mandatory detector/check/message ID registry.
+SecurityFailureBitmap ::= BIT STRING {
+    -- Secured packet or SPDU structure could not be parsed.
+    parseFailure(0),
+    -- A critical information element was unsupported.
+    unsupportedCriticalInfo(1),
+    -- Signer certificate or identifier could not be located.
+    signerNotFound(2),
+    -- Signer certificate validity interval had expired.
+    certificateExpired(3),
+    -- Signer certificate was not yet valid at the checked time.
+    certificateNotYetValid(4),
+    -- Certificate was determined to be revoked.
+    certificateRevoked(5),
+    -- Certificate chain could not be constructed or validated.
+    chainBuildFailure(6),
+    -- Chain terminates at a root not trusted by this analyzer.
+    untrustedRoot(7),
+    -- Chain exceeded policy or implementation length limits.
+    chainTooLong(8),
+    -- Required revocation information was unavailable or overdue.
+    revocationInfoUnavailable(9),
+    -- Signature or other cryptographic verification failed.
+    signatureInvalid(10),
+    -- PSID, SSP, or certificate permission was unauthorized.
+    unauthorizedPsidOrSsp(11),
+    -- Header PSID and protected/application PSID disagree.
+    headerPsidMismatch(12),
+    -- Generation-time value failed the applicable validity rule.
+    generationTimeInvalid(13),
+    -- Expiration-time value failed the applicable validity rule.
+    expirationTimeInvalid(14),
+    -- Generation location failed the applicable validity rule.
+    generationLocationInvalid(15),
+    -- Packet was identified as duplicate or replay.
+    duplicateOrReplay(16),
+    -- Certificate or message validity region did not apply.
+    validityRegionInvalid(17),
+    -- Signed external-data hash did not match supplied data.
+    externalHashMismatch(18),
+    -- Certificate fields or permissions were internally inconsistent.
+    certificateConsistencyFailure(19),
+    -- Signed-data fields were internally inconsistent.
+    signedDataConsistencyFailure(20)
+} (SIZE(0..256))
+
+-- This report stays separate from relevance and consistency reports.
+-- Extensions may contain detailed evidence or deployment-specific
+-- codes.
+SecurityValidationAnnotation ::= SEQUENCE {
+    status                 ProcessingStatus,
+    failures               SecurityFailureBitmap OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+
+-- Examples: stale/future data, expired packet, replay, or geographic
+-- irrelevance. These results depend on receiver context and policy.
+RelevanceAnnotation ::= SEQUENCE {
+    status                 ProcessingStatus,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+
+-- Examples: disagreements between SPDU fields, certificate
+-- permissions,
+-- PSID/header/application fields, or signed/external data
+-- relationships.
+ConsistencyAnnotation ::= SEQUENCE {
+    status                 ProcessingStatus,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+
+-- The core deliberately avoids a mandatory detector-ID dictionary.
+MbdAnnotation ::= SEQUENCE {
+    status                 ProcessingStatus,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+
+ApplicationCongestionAnnotation ::= SEQUENCE {
+    cqi                    INTEGER (0..255) OPTIONAL,
+    vehicleDensity         INTEGER (0..65535) OPTIONAL,
+    densityRangeM          INTEGER (0..65535) OPTIONAL,
+    uniqueRvCount          INTEGER (0..65535) OPTIONAL,
+    observationWindowUs    INTEGER (0..4294967295) OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+
+ApplicationAnnotation ::= SEQUENCE {
+    congestion             ApplicationCongestionAnnotation OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+
+AnalysisAnnotations ::= SEQUENCE {
+    securityValidation     SecurityValidationAnnotation OPTIONAL,
+    relevance              RelevanceAnnotation OPTIONAL,
+    consistency            ConsistencyAnnotation OPTIONAL,
+    mbd                    MbdAnnotation OPTIONAL,
+    application            ApplicationAnnotation OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+
+END
