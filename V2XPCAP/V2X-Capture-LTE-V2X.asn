@@ -1,0 +1,80 @@
+--
+-- V2X Capture Metadata Profile
+-- LTE-V2X RAT-specific summary for one logical V2X packet.
+--
+-- IEEE 1609.3-2020 Annex M describes LTE-V2X encapsulation through
+-- MAC, RLC, and PDCP. This profile does not reproduce those packet
+-- bytes. The core reports only compact lower-layer observations that
+-- ordinary modem or driver export interfaces are likely to expose.
+--
+V2X-Capture-LTE-V2X
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  lteV2x(6) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+IMPORTS
+    Availability, MeasurementValue, StatusBoolean,
+    ExtensionContainers
+FROM V2X-Capture-Common;
+-- LTE PC5 Layer-2 identifiers and PPPP are LTE-specific information.
+-- They are not placed in the common payload descriptor. The source
+-- Layer-2 ID is 24 bits. A destination Layer-2 ID may be 16
+-- or 24 bits, depending on the applicable LTE V2X context.
+LtePc5Addressing ::= SEQUENCE {
+    -- Source PC5 Layer-2 ID, when exposed by LTE sidelink stack.
+    sourceLayer2Id        OCTET STRING (SIZE(3)) OPTIONAL,
+    -- Destination PC5 Layer-2 ID; 16 or 24 bits by LTE context.
+    destinationLayer2Id   OCTET STRING (SIZE(2..3)) OPTIONAL,
+    -- LTE PC5 PPPP service-priority value; not an SCI priority
+    -- codepoint.
+    pppp                  INTEGER (1..8) OPTIONAL,
+    extensions            ExtensionContainers OPTIONAL,
+    ...
+}
+-- SCI1 is LTE sidelink control on PSCCH. It is not an RLC or PDCP
+-- type. Each value is a capture-side observation, not a reconstructed
+-- SCI bit field. Detailed raw control information remains outside the
+-- interoperable core.
+LteSci1Observation ::= SEQUENCE {
+    availability           Availability,
+    -- Decoded SCI priority codepoint; distinct from PC5 PPPP.
+    priority               MeasurementValue OPTIONAL,
+    -- Decoded SCI resource-reservation codepoint.
+    resourceReservation    MeasurementValue OPTIONAL,
+    -- Decoded SCI frequency-resource allocation codepoint.
+    frequencyResource      MeasurementValue OPTIONAL,
+    -- Decoded SCI time-resource/time-gap codepoint.
+    timeGap                MeasurementValue OPTIONAL,
+    -- Decoded SCI modulation and coding scheme codepoint.
+    mcs                    MeasurementValue OPTIONAL,
+    -- Decoded SCI retransmission-index codepoint.
+    retransmissionIndex    MeasurementValue OPTIONAL,
+    -- Decoded SCI transmission-format codepoint, if exposed.
+    transmissionFormat     MeasurementValue OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+-- One logical-packet summary. Raw RLC/PDCP bytes, per-segment
+-- records, per-TB records, and per-HARQ-event records are
+-- outside the core.
+LteLowerLayerSummary ::= SEQUENCE {
+    -- Whether HARQ was used for this logical packet.
+    harqUsed               StatusBoolean OPTIONAL,
+    -- Number of known HARQ transmissions, if source supplies a count.
+    harqTransmissionCount MeasurementValue OPTIONAL,
+    -- Number of known RLC segments summarized by this logical packet.
+    rlcSegmentCount        MeasurementValue OPTIONAL,
+    -- Reported RLC error count associated with this logical packet.
+    rlcErrorCount          MeasurementValue OPTIONAL,
+    -- Reported PDCP error count associated with this logical packet.
+    pdcpErrorCount         MeasurementValue OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+LteV2xMetadata ::= SEQUENCE {
+    pc5Addressing          LtePc5Addressing OPTIONAL,
+    pscch                  LteSci1Observation OPTIONAL,
+    lowerLayerSummary      LteLowerLayerSummary OPTIONAL,
+    extensions             ExtensionContainers OPTIONAL,
+    ...
+}
+END
