@@ -1,91 +1,173 @@
-# V2X Capture Metadata Profile — Commented ASN.1 Draft
+# V2X Capture Metadata Profile — UPER / Per-EPB Metadata
 
-## Scope and philosophy
+## Philosophy
 
-This is an open V2X packet-capture metadata profile for normal pcapng
-files. It does not change pcapng or replace native V2X packet bytes. One
-EPB represents one logical V2X packet whenever practical. The profile
-metadata is a separate, versioned ASN.1 object associated with that EPB.
+This is an open **pcapng profile**, not a replacement capture-file
+format. It preserves normal pcapng blocks and native packet bytes. One
+logical V2X packet is represented by one Enhanced Packet Block (EPB).
+The profile does not modify pcapng, reinterpret the EPB block type, or
+insert a universal V2X header in front of DSRC Radiotap.
 
-`V2XCaptureMetadata` is always encoded using OER. The normal DSRC packet
-representation stays `Radiotap -> IEEE 802.11p/WAVE`; no universal wrapper
-is inserted before Radiotap. ARIB, LTE-V2X, and NR-V2X each have distinct
-RAT modules. Common observer time, location, motion, RF, provenance,
-analysis, and extension information remains external to native bytes.
+The compact profile model is:
 
-The LTE/NR core is intentionally summary-oriented: no raw RLC/PDCP bytes,
-no per-segment data, no per-TB records, and no HARQ-event list. It records
-only whether HARQ was used and optionally reported transmission, segment,
-and error counts.
+- `V2XCaptureMetadata` is one optional per-EPB metadata object.
+- **UPER** is the mandatory structured encoding for all profile-defined
+  ASN.1 objects.
+- The standard **EPB timestamp is the only capture timestamp**.
+- The duplicate ASN.1 receive/transmit timestamp is removed.
+- Dynamic observer location, speed, heading, and radio observations
+  remain optional fields in that EPB's UPER object.
+- Security, relevance, consistency, Misbehavior Detection, and
+  application annotations
+  also remain optional fields in that EPB's UPER object.
+- The profile uses **no correlated observer-state block** and **no
+  correlated analysis block**.
+
+This deliberately trades some repeated optional per-packet data for a
+self-contained record: extracting, merging, or filtering an EPB does
+not require reconstructing state from another profile-defined block.
 
 ## pcapng carriage
 
-At write time, place the OER encoding of `V2XCaptureMetadata` in one
-profile-defined EPB custom option. The existing pcapng custom-option
-format carries its PEN. The profile bytes after that wrapper are planned as:
+### IDB-level interface context
+
+Each V2X interface uses an ordinary pcapng Interface Description Block
+(IDB) and its normal LinkType. The profile may place
+`UPER(V2XInterfaceMetadata)` in an OmniAir-defined Custom Binary Option
+on that IDB. It describes stable interface and time interpretation
+context; it is **not** a correlated packet-state record.
+
+The IDB profile metadata declares the epoch and timestamp reference point
+for all EPBs that name the IDB. A conforming V2X interface sets the
+ordinary pcapng `if_tsresol` option to one-microsecond resolution.
+
+The standard EPB timestamp therefore means:
+
+- **RX:** capture time at the IDB-declared receive reference point.
+- **TX:** capture time at the IDB-declared transmit reference point.
+
+A producer must not label host submission as OTA transmit start. If it
+knows only submission time, it declares `submittedToRadio`.
+
+### EPB metadata
+
+The base option is associated with one ordinary EPB. The EPB block type
+remains `0x00000006`; native packet bytes remain unchanged.
 
 ```text
-"V2XM" | OER(V2XCaptureMetadata)
+EPB Custom Binary Option value
+    OmniAir IANA PEN (32 bits)
+    "V2XM"
+    UPER(V2XCaptureMetadata)
 ```
 
-A PEN is just the global namespace identifier for the organization or
-standards body governing custom-option bytes. It does not make pcapng,
-the packet bytes, or this profile proprietary. The draft OID and final PEN
-owner remain to be assigned before publication.
+For DSRC, EPB packet data remains:
 
-For annotations generated after capture, use a profile custom block or a
-companion stream. The semantic join key is `sessionId + recordId`.
-`correlationId`, time, packet index, or addresses are only supplemental.
+```text
+Radiotap -> IEEE 802.11p / WAVE
+```
 
-## Time, location, and transmit semantics
+The base metadata is self-contained per EPB. It can include observer
+state, RAT context, and analysis only when each is available or was run.
+The writer omits optional fields/categories rather than emitting empty
+placeholder structures.
 
-All profile time is integral microseconds. `TimeEpoch` includes only UTC,
-GPS, TAI, another documented epoch, or unknown. NTP, PTP, gPTP, GNSS, and
-cellular network are synchronization sources, not epochs. `localOscillator`
-is a source; `freeRunning` is a clock state indicating no active external
-discipline. `holdover` means a previously disciplined local oscillator is
-maintaining time after loss of a reference.
+## Storage decisions
 
-Coordinates use WGS-84 unless `datum=other` identifies another datum.
-Altitude is in centimeters relative to the ellipsoid of that same datum.
-Heading is degrees times 100, clockwise from true north; no alternate
-heading reference is encoded. Both receive and transmit observations are
-modeled. Tx timestamps carry a time point so packet creation, radio
-submission, scheduling, OTA start, and completion are not confused.
+### Implemented savings
 
-## RAT placement
+1. **No duplicate timestamp.** The EPB's standard timestamp is used;
+   there is no ASN.1 timestamp value in `V2XCaptureMetadata`.
+2. **UPER only.** The structured base object, IDB object, and all
+   profile-defined nested objects use UPER. There is no OER alternative.
+3. **Sparse optional metadata.** Location/motion/radio/analysis fields
+   are omitted when unavailable, inapplicable, or not evaluated.
+4. **Stable context at IDB level.** Interface time semantics and stable
+   interface context are written once per IDB rather than per EPB.
 
-PC5 Layer-2 IDs and LTE PPPP are RAT-specific. They are not common payload
-fields. LTE puts Layer-2 IDs and PPPP in its branch. NR puts PC5 Layer-2
-IDs and PC5 QoS values in its branch; SCI-side Layer-1 IDs are separately
-named. LTE PPPP and SCI priority are distinct concepts, and SCI priority
-must not be interpreted as PPPP.
+### Chosen non-saving: no correlated state blocks
 
-## Extension rule
+Periodic observer-state records could save additional bytes for highly
+repetitive location, motion, or time-quality data. They are not used in
+this version because the profile requires self-contained EPB metadata.
+Dynamic state therefore stays in the optional receive/transmit observation
+of the EPB that it describes. No decoder inherits a prior EPB's state.
 
-The profile object itself is OER. An `ExtensionValue` is intentionally
-opaque to the base profile. Its extension definition states whether the
-stored octets are opaque, OER for an extension ASN.1 type, or UPER for an
-extension ASN.1 type. The allowed values are exactly:
+## Extensions
 
-- `opaque` — bytes are interpreted only by the extension definition;
-- `oer` — bytes encode that extension's ASN.1 type using OER; and
-- `uper` — bytes encode that extension's ASN.1 type using UPER.
+Profile-defined structures are UPER encoded. A regional or manufacturer
+extension that is deliberately outside the base schema is carried as a
+separate Custom Binary Option on the same EPB, using that owner's PEN.
+Such third-party bytes are opaque to the base V2X profile.
 
-Regional and manufacturer extensions are held in independent containers.
-A decoder can retain or ignore an unrecognized extension without changing
-core-field meaning.
+```text
+Regional or Manufacturer Custom Binary Option
+    extension owner's IANA PEN (32 bits)
+    extension profile ID and revision
+    opaque extension bytes
+```
 
-## Files
+Do not create a second EPB merely to attach an extension: it would be a
+second packet record, not an attachment. A regional/manufacturer option
+on the original EPB preserves the one-logical-packet model.
 
-| File | Scope |
+## RAT boundaries
+
+- **DSRC:** preserves `Radiotap -> IEEE 802.11p/WAVE` packet data.
+- **ARIB STD-T760:** uses its own small technology branch.
+- **LTE-V2X:** carries PC5 Layer-2 IDs and PPPP only in the LTE branch.
+- **NR-V2X:** carries PC5 Layer-2 IDs and NR QoS only in the NR branch.
+- **LTE/NR lower layers:** provide summary values only: HARQ usage/count,
+  optional RLC segment count, and optional RLC/PDCP error counts. The
+  profile does not require raw RLC/PDCP bytes, transport-block rows,
+  segment records, or HARQ-event lists.
+
+## Analysis boundaries
+
+The optional per-EPB `AnalysisAnnotations` field reports separate:
+
+- cryptographic/credential **security validation**;
+- receiver-context **relevance**;
+- internal **consistency**;
+- **Misbehavior Detection (MBD)**; and
+- TX and RX application/stack annotations.
+
+All analysis values are local results from an ITS stack, capture
+producer, or post-capture analyzer. They are not on-air bytes and are
+not signed packet data. TX congestion values are explicitly TX-side;
+the receive container is reserved for receive-side stack results.
+
+No category is mandatory. When present, each category contains explicit
+attempted/processed/result semantics. The core does not require a
+detector, check, or message-ID dictionary.
+
+## Coordinate reference systems
+Observer coordinates identify a **coordinate reference system**, not only
+an assumed datum. The base values explicitly recognize WGS-84 and GCJ-02.
+The `other` branch carries a UTF-8 `systemId` for any future regional,
+transformed, encrypted/protected, or otherwise non-WGS-84 system. A tool
+must not assume another system is WGS-84 or safely convertible without the
+governing system specification. Latitude, longitude, and altitude always
+use the same declared coordinate reference system.
+
+## ASN.1 modules
+
+| Module | Responsibility |
 |---|---|
-| `V2X-Capture-Common.asn` | IDs, availability, payload, extension definitions |
-| `V2X-Capture-Observer.asn` | Rx/Tx time, position, motion, RF, provenance |
-| `V2X-Capture-Analysis.asn` | Security, relevance, consistency, MBD, application |
-| `V2X-Capture-DSRC.asn` | DSRC/Radiotap-adjacent metadata |
-| `V2X-Capture-ARIB-T760.asn` | ARIB STD-T760 ITS-Connect metadata |
-| `V2X-Capture-LTE-V2X.asn` | LTE PC5, SCI1, lower-layer summary |
-| `V2X-Capture-NR-V2X.asn` | NR PC5, SCI, QoS, lower-layer summary |
-| `V2X-Capture-Record.asn` | Top-level OER `V2XCaptureMetadata` |
+| `V2X-Capture-Common` | identifiers, availability, payload classification |
+| `V2X-Capture-Time` | epoch, synchronization, EPB timestamp semantics |
+| `V2X-Capture-Interface` | IDB-level interface/time metadata |
+| `V2X-Capture-Observer` | location, motion, provenance, and RF observation |
+| `V2X-Capture-DSRC` | DSRC/Radiotap-adjacent metadata |
+| `V2X-Capture-ARIB-T760` | ARIB ITS-Connect metadata |
+| `V2X-Capture-LTE-V2X` | LTE V2X PC5/SCI/summary metadata |
+| `V2X-Capture-NR-V2X` | NR V2X PC5/SCI/summary metadata |
+| `V2X-Capture-Analysis` | optional per-EPB analysis annotations |
+| `V2X-Capture-Record` | compact per-EPB base metadata |
 
+## Validation gate
+
+`validate_asn.py` performs structural checks, import-symbol checks,
+acyclic import-graph checks, and verifies the 70-character line limit.
+It is not an ASN.1 compiler. The release gate remains compilation and
+UPER encode/decode validation in OSS Nokalva ASN.1 Studio.

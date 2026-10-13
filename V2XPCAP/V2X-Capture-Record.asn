@@ -1,70 +1,82 @@
 --
 -- V2X Capture Metadata Profile
--- Top-level metadata object for one logical V2X packet.
+-- Base per-logical-packet metadata object.
 --
--- OER is mandatory to support for V2XCaptureMetadata. A writer puts
--- one OER encoding in the profile-defined EPB custom option when the
--- observation is available at write time. The EPB packet data remains
--- native captured bytes. A post-capture annotation uses a correlated
--- profile custom block or companion stream keyed by sessionId +
--- recordId.
+-- The base object is UPER encoded in one OmniAir-defined Custom
+-- Binary Option on its Enhanced Packet Block. The standard EPB
+-- timestamp is the sole capture timestamp. Its epoch and capture
+-- reference point are declared by the associated IDB profile option.
 --
-
+-- Observer state and analysis annotations remain in this per-EPB
+-- object. The profile does not use a correlated observer-state or
+-- analysis block.
+--
 V2X-Capture-Record
 { iso(1) identified-organization(3) v2xCapture(99999)
-  record(8) version1(1) }
+  record(9) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-
 IMPORTS
     RecordId, CaptureSessionId, CorrelationId, V2XTechnology,
-    Direction, PayloadDescriptor, ExtensionContainers
+    Direction, PayloadDescriptor
 FROM V2X-Capture-Common
-
     ReceiveObservation, TransmitObservation
 FROM V2X-Capture-Observer
-
     AnalysisAnnotations
 FROM V2X-Capture-Analysis
-
     DsrcMetadata
 FROM V2X-Capture-DSRC
-
     AribT760Metadata
 FROM V2X-Capture-ARIB-T760
-
     LteV2xMetadata
 FROM V2X-Capture-LTE-V2X
-
     NrV2xMetadata
 FROM V2X-Capture-NR-V2X;
-
+-- Selects only the RAT-specific metadata branch matching technology.
 TechnologyMetadata ::= CHOICE {
+    -- DSRC observer-side metadata; Radiotap remains packet data.
     dsrc                   DsrcMetadata,
+    -- ARIB STD-T760 observer-side metadata.
     aribT760               AribT760Metadata,
+    -- LTE-V2X compact summary.
     lteV2x                 LteV2xMetadata,
+    -- NR-V2X compact summary.
     nrV2x                  NrV2xMetadata,
+    -- A nonstandard RAT summary defined outside this base profile.
     other                  OCTET STRING (SIZE(0..65535)),
     ...
 }
-
--- sessionId and recordId are mandatory because they are the profile's
--- primary semantic correlation key. correlationId is supplemental
--- only. For receive direction, receiveObservation should be present.
--- For transmit direction, transmitObservation should be present.
+-- sessionId plus recordId is the primary semantic correlation key.
+-- For receive direction, receiveObservation should be present. For
+-- transmit direction, transmitObservation should be present.
 V2XCaptureMetadata ::= SEQUENCE {
+    -- Version of the public profile schema used for this object.
+    -- A version-1 encoder writes 1. A decoder that does not support a
+    -- received version shall preserve or skip the metadata safely.
     profileVersion         INTEGER (1..255),
+    -- A new collision-resistant 16-octet value generated for each
+    -- capture session and reused by every record in that session.
     sessionId              CaptureSessionId,
+    -- A unique record number within sessionId. A writer should assign
+    -- it monotonically as logical packet records are created.
     recordId               RecordId,
+    -- Optional producer-specific supplemental correlation token.
+    -- It never replaces the required sessionId plus recordId key.
     correlationId          CorrelationId OPTIONAL,
+    -- RAT that carried the logical packet.
     technology             V2XTechnology,
+    -- Receive, transmit, observe, or unknown direction.
     direction              Direction,
+    -- RAT-neutral payload classification when available.
     payload                PayloadDescriptor OPTIONAL,
+    -- Receive-side observer context; no duplicate timestamp.
     receiveObservation     ReceiveObservation OPTIONAL,
+    -- Transmit-side observer context; no duplicate timestamp.
     transmitObservation    TransmitObservation OPTIONAL,
+    -- Metadata branch matching technology.
     technologyMetadata     TechnologyMetadata OPTIONAL,
+    -- Local stack/capture/analyzer annotations, when available.
+    -- These do not modify or assert content in the packet bytes.
     analysis               AnalysisAnnotations OPTIONAL,
-    extensions             ExtensionContainers OPTIONAL,
     ...
 }
-
 END

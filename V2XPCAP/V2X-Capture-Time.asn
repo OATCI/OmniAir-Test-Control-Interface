@@ -1,0 +1,161 @@
+--
+-- V2X Capture Metadata Profile
+-- Time epoch, synchronization, and timestamp-reference semantics.
+--
+-- The pcapng Enhanced Packet Block timestamp is the capture timestamp
+-- for every logical packet. This profile does not encode a duplicate
+-- per-packet timestamp. A conforming V2X interface uses a 1 us pcapng
+-- timestamp resolution and declares its epoch and reference point in
+-- the associated IDB profile option.
+--
+V2X-Capture-Time
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  time(2) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+IMPORTS
+    DurationUs, MeasurementValue
+FROM V2X-Capture-Common;
+
+-- Epoch used to interpret the standard pcapng EPB timestamp.
+-- Synchronization protocols are not epochs.
+TimeEpoch ::= ENUMERATED {
+    -- Coordinated Universal Time.
+    utc(0),
+    -- GPS/GNSS system time; the UTC offset may be declared
+    -- separately.
+    gps(1),
+    -- International Atomic Time.
+    tai(2),
+    -- Another documented epoch defined by the interface owner.
+    other(254),
+    -- The writer cannot identify the epoch.
+    unknown(255)
+}
+
+-- Mechanism or source that disciplines the observer clock.
+TimeSyncSource ::= ENUMERATED {
+    -- GNSS-derived timing without a separately exposed 1PPS input.
+    gnss(0),
+    -- GNSS timing disciplined by a one-pulse-per-second reference.
+    gnssOnePps(1),
+    -- Network Time Protocol.
+    ntp(2),
+    -- Precision Time Protocol.
+    ptp(3),
+    -- Generalized PTP, commonly an automotive Ethernet time domain.
+    gptp(4),
+    -- Serving-network time delivered through a cellular modem.
+    cellularNetwork(5),
+    -- Local oscillator used as the active clock basis or fallback.
+    localOscillator(6),
+    -- A documented source not enumerated by this base profile.
+    other(254),
+    -- The writer cannot identify the synchronization source.
+    unknown(255)
+}
+
+-- Current condition of the observer clock.
+TimeSyncState ::= ENUMERATED {
+    -- Actively disciplined and within the source's lock criteria.
+    locked(0),
+    -- Reference lost; prior discipline is maintained by the
+    -- oscillator.
+    holdover(1),
+    -- Clock is acquiring or converging to its reference.
+    synchronizing(2),
+    -- Reference exists, but quality is below normal operating
+    -- criteria.
+    degraded(3),
+    -- No external discipline is active; clock runs locally.
+    freeRunning(4),
+    -- The writer cannot determine synchronization state.
+    unknown(255)
+}
+
+-- Statistical interpretation of a reported time uncertainty.
+TimeUncertaintySemantics ::= ENUMERATED {
+    -- Reported uncertainty is an asserted absolute error bound.
+    absoluteBound(0),
+    -- Reported uncertainty is one standard deviation.
+    standardDeviation(1),
+    -- Reported uncertainty is two standard deviations.
+    twoSigma(2),
+    -- Reported uncertainty is a confidence-interval half-width.
+    confidenceInterval(3),
+    -- Reported uncertainty is an estimate without stronger semantics.
+    estimate(4),
+    -- The writer cannot state the uncertainty interpretation.
+    unknown(255)
+}
+
+-- State of leap-second knowledge used for UTC/GPS conversion.
+LeapSecondState ::= ENUMERATED {
+    -- Current offset is known and applicable.
+    current(0),
+    -- A positive leap second is scheduled but not yet effective.
+    pendingInsertion(1),
+    -- A negative leap second is scheduled but not yet effective.
+    pendingDeletion(2),
+    -- Known leap-second information may be stale.
+    stale(3),
+    -- Required leap-second information is unavailable.
+    unavailable(4),
+    -- The writer cannot determine leap-second status.
+    unknown(255)
+}
+
+-- Quality of the clock used for the standard EPB timestamp.
+TimeQuality ::= SEQUENCE {
+    -- Source that disciplines the capture clock.
+    source                 TimeSyncSource,
+    -- Current lock, holdover, or free-running state.
+    state                  TimeSyncState,
+    -- Clock uncertainty in whole microseconds.
+    uncertaintyUs          MeasurementValue OPTIONAL,
+    -- Defines the statistical meaning of uncertaintyUs.
+    uncertaintySemantics   TimeUncertaintySemantics OPTIONAL,
+    -- Confidence percent when confidenceInterval is selected.
+    confidencePercent      INTEGER (0..100) OPTIONAL,
+    -- Age of holdover operation, when state is holdover.
+    holdoverAgeUs          DurationUs OPTIONAL,
+    -- Leap-second knowledge relevant to UTC/GPS conversion.
+    leapSecondState        LeapSecondState OPTIONAL,
+    -- UTC minus GPS offset in whole seconds, when known.
+    utcGpsOffsetSec        INTEGER (-128..127) OPTIONAL,
+    ...
+}
+
+-- Receive-side physical or logical event represented by the EPB time.
+ReceiveTimestampPoint ::= ENUMERATED {
+    -- Time at the receiver antenna/RF observation boundary.
+    antennaOrRf(0),
+    -- Time at the modem or radio receive interface.
+    radioInterface(1),
+    -- Time at the host driver or operating-system receive interface.
+    driverOrHost(2),
+    -- Time at replay ingestion rather than original air reception.
+    replayIngress(3),
+    -- The writer cannot identify the receive timestamp point.
+    unknown(255)
+}
+
+-- Transmit-side physical or logical event represented by the EPB
+-- time.
+TransmitTimestampPoint ::= ENUMERATED {
+    -- Time the packet was created by application or protocol
+    -- software.
+    packetCreated(0),
+    -- Time the packet was submitted to the modem or radio.
+    submittedToRadio(1),
+    -- Time a transmission opportunity was scheduled or assigned.
+    scheduledForTransmission(2),
+    -- Time over-the-air emission began, when exposed accurately.
+    transmissionStarted(3),
+    -- Time over-the-air emission completed, when exposed accurately.
+    transmissionCompleted(4),
+    -- The writer cannot identify the transmit timestamp point.
+    unknown(255)
+}
+
+END

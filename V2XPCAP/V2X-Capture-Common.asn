@@ -1,163 +1,144 @@
 --
 -- V2X Capture Metadata Profile
--- Common identifiers, state, payload, and extension types.
+-- Common identifiers, classifications, and availability values.
 --
--- This profile is an open metadata profile for existing pcapng files.
--- It does not modify pcapng or any on-air V2X protocol.
+-- The profile uses existing pcapng blocks and options. It does not
+-- change pcapng, any registered LinkType, or an over-the-air
+-- protocol.
 --
--- OER is the single mandatory-to-support encoding for the top-level
--- V2XCaptureMetadata object. Extension values are either OER values
--- specified by an extension definition, or opaque values.
+-- UPER is the sole structured encoding for every profile-defined
+-- ASN.1 object. Opaque third-party data is carried outside this
+-- object
+-- in its own pcapng Custom Binary Option.
 --
 V2X-Capture-Common
 { iso(1) identified-organization(3) v2xCapture(99999)
   common(1) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
--- The OID arc above is a draft placeholder. Replace it before
--- release.
--- A record is unique within a capture session.
+
+-- This OID is a draft placeholder. Replace it before publication.
+
+-- A record ID is unique within one capture session.
 RecordId ::= INTEGER (0..18446744073709551615)
--- A writer creates one random or otherwise collision-resistant value
--- for each capture session. It is a required primary join-key
--- component for a correlated post-capture annotation.
+
+-- A writer creates one collision-resistant value per capture session.
+-- sessionId and recordId together are the primary correlation key.
 CaptureSessionId ::= OCTET STRING (SIZE(16))
+
+-- Identifies a receiver, transmitter, recorder, or capture appliance.
 ReceiverId ::= OCTET STRING (SIZE(1..64))
+
+-- Identifies a capture interface within the producer's environment.
 InterfaceId ::= OCTET STRING (SIZE(1..64))
+
+-- Provides supplemental correlation when a producer has one.
+-- It is never a substitute for sessionId plus recordId.
 CorrelationId ::= OCTET STRING (SIZE(1..32))
--- RAT used for the logical V2X packet represented by this record.
+
+-- A nonzero duration expressed in whole microseconds.
+DurationUs ::= INTEGER (1..4294967295)
+
+-- RAT used for the logical packet represented by this record.
 V2XTechnology ::= ENUMERATED {
-    -- IEEE 802.11p / DSRC packet, normally with native Radiotap.
+    -- IEEE 802.11p / DSRC, normally using native Radiotap bytes.
     ieee80211pDsrc(0),
-    -- Japan ARIB STD-T760 ITS-Connect packet.
+    -- Japan ARIB STD-T760 / ITS-Connect.
     aribStdT760ItsConnect(1),
-    -- LTE sidelink V2X packet.
+    -- LTE sidelink V2X.
     lteV2x(2),
-    -- NR sidelink V2X packet.
+    -- NR sidelink V2X.
     nrV2x(3),
-    -- A RAT outside the enumerated interoperable branches.
+    -- A RAT not listed by this interoperable base profile.
     other(254),
-    -- RAT could not be determined by the producer.
+    -- The producer cannot determine the RAT.
     unknown(255)
 }
--- Direction of the represented logical packet at this observer.
+
+-- Direction of the logical packet at this capture observer.
 Direction ::= ENUMERATED {
-    -- Packet was received from air or a radio/modem receive export.
+    -- Packet was received from air or a receive-side export.
     receive(0),
-    -- Packet was transmitted, scheduled, or submitted by this
-    -- observer.
+    -- Packet was transmitted, scheduled, or submitted by this node.
     transmit(1),
-    -- Passive observation with no asserted Rx versus Tx direction.
+    -- Passive observation without an asserted Rx or Tx direction.
     observe(2),
-    -- Direction is not known by the capture producer.
+    -- The producer cannot determine the direction.
     unknown(255)
 }
--- Availability qualifies a value. A producer shall not use a numeric
--- zero, an empty string, or another ordinary value as an
--- unavailable sentinel. When availability is not observed, derived,
--- or estimated, the related value field should be absent.
+
+-- Qualifies how a value was obtained or why it is absent.
+-- A producer shall not use zero, an empty string, or another ordinary
+-- value as an unavailable sentinel.
 Availability ::= ENUMERATED {
-    -- Directly reported by source hardware, software, or a sensor.
+    -- Directly reported by the hardware, software, or a sensor.
     observed(0),
-    -- Deterministically computed from other reported values.
+    -- Deterministically calculated from reported values.
     derived(1),
-    -- Inferred using a model or calculation with uncertainty.
+    -- Inferred by a model or calculation with uncertainty.
     estimated(2),
-    -- Potentially meaningful, but no value exists for this record.
+    -- The value could be meaningful but is unavailable for this
+    -- record.
     notAvailable(3),
-    -- Capture path does not expose the value.
+    -- The capture path does not expose the value.
     notExposed(4),
-    -- Value has no meaning for this packet, RAT, or direction.
+    -- The value has no meaning for this RAT, packet, or direction.
     notApplicable(5),
-    -- Bytes/data existed but producer did not decode the value.
+    -- Relevant data existed, but the producer did not decode it.
     notDecoded(6),
-    -- Producer cannot state which availability condition applies.
+    -- The producer cannot state which availability condition applies.
     unknown(255)
 }
--- The unit and valid range of value are defined by its containing
--- field.
+
+-- The containing field defines the units and valid range of value.
 MeasurementValue ::= SEQUENCE {
+    -- States whether value was observed, derived, or unavailable.
     availability       Availability,
+    -- Present only when availability provides an actual value.
     value              INTEGER OPTIONAL,
     ...
 }
+
+-- Compact availability-qualified Boolean.
 StatusBoolean ::= SEQUENCE {
+    -- States whether value is meaningful and available.
     availability       Availability,
+    -- Present only when availability provides an actual Boolean.
     value              BOOLEAN OPTIONAL,
     ...
 }
--- General classification of the represented payload.
+
+-- General classification of the packet-data payload.
 PayloadKind ::= ENUMERATED {
-    -- Payload is identified as an IP-family payload.
+    -- Packet data is an IPv4 or IPv6 family payload.
     ip(0),
-    -- Payload is a named non-IP family; see nonIpFamilyId.
+    -- Packet data is a named non-IP family.
     nonIp(1),
-    -- Capture retains only raw link-layer packet data.
+    -- Packet data is retained only as raw link-layer bytes.
     rawLinkLayer(2),
-    -- Capture producer cannot classify the payload.
+    -- The producer cannot classify the payload.
     unknown(255)
 }
--- A namespace identifies the registry in which familyId is assigned.
--- It prevents a receiver from inferring a non-IP family merely
--- because an IP header is absent.
+
+-- Identifies a non-IP payload family without inferring it from the
+-- absence of an IP header.
 NonIpFamilyId ::= SEQUENCE {
+    -- Family value assigned by the stated namespace.
     familyId           INTEGER (0..65535),
+    -- Registry or specification namespace for familyId.
     namespace          OCTET STRING (SIZE(1..32)) OPTIONAL,
     ...
 }
--- This is RAT-neutral payload classification only. 3GPP PC5 Layer-2
--- identifiers and PPPP are not common fields. They are represented in
--- the LTE-V2X and NR-V2X technology branches. Those branches
--- define their semantics and sizes.
+
+-- This is RAT-neutral payload classification only. PC5 Layer-2
+-- identifiers and LTE PPPP remain in their RAT-specific modules.
 PayloadDescriptor ::= SEQUENCE {
+    -- Basic payload classification for the packet data.
     payloadKind        PayloadKind,
+    -- Required for a classified non-IP family when known.
     nonIpFamilyId      NonIpFamilyId OPTIONAL,
+    -- PSID when exposed by the applicable higher-layer protocol.
     psid               INTEGER (0..4294967295) OPTIONAL,
     ...
 }
--- Encoding of extension value. The top-level metadata object is
--- always
--- OER; this enum applies only to optional extension payload octets.
-ExtensionEncoding ::= ENUMERATED {
-    -- Bytes are opaque to the base profile and extension-unaware
-    -- tools.
-    opaque(0),
-    -- Bytes are OER for the ASN.1 type defined by extensionId.
-    oer(1),
-    -- Bytes are UPER for the ASN.1 type defined by extensionId.
-    uper(2)
-}
 
--- Each extensionId identifies its extension definition and value
--- type.
-ExtensionValue ::= SEQUENCE {
-    -- Identifier assigned in the applicable regional/manufacturer
-    -- registry.
-    extensionId        INTEGER (0..65535),
-    -- Indicates how the extension definition encodes value octets.
-    encoding           ExtensionEncoding,
-    -- Encoded bytes; unknown extensions can be retained or safely
-    -- skipped.
-    value              OCTET STRING (SIZE(0..65535)),
-    ...
-}
-RegionalExtension ::= SEQUENCE {
-    regionCode         OCTET STRING (SIZE(1..16)),
-    extensions         SEQUENCE (SIZE(1..MAX)) OF ExtensionValue,
-    ...
-}
-ManufacturerExtension ::= SEQUENCE {
-    manufacturerId     OCTET STRING (SIZE(1..64)),
-    extensions         SEQUENCE (SIZE(1..MAX)) OF ExtensionValue,
-    ...
-}
--- Regional and manufacturer extension spaces are intentionally
--- distinct.
-ExtensionContainers ::= SEQUENCE {
-    regional           SEQUENCE (SIZE(0..MAX)) OF RegionalExtension
-                       OPTIONAL,
-    manufacturer       SEQUENCE (SIZE(0..MAX)) OF
-        ManufacturerExtension
-                       OPTIONAL,
-    ...
-}
 END

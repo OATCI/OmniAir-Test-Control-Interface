@@ -3,26 +3,25 @@
 -- Japan ARIB STD-T760 / ITS-Connect RAT-specific metadata.
 --
 -- This branch is independent of IEEE 802.11p and cellular sidelink.
--- It permits a regional radio representation without overloading the
--- common observer model or another RAT's native packet
--- representation.
+-- It permits regional radio data without overloading the common model
+-- or another RAT's native packet representation.
 --
-
 V2X-Capture-ARIB-T760
 { iso(1) identified-organization(3) v2xCapture(99999)
-  aribT760(5) version1(1) }
+  aribT760(6) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
 
 IMPORTS
-    MeasurementValue, ExtensionContainers
+    MeasurementValue
 FROM V2X-Capture-Common;
 
--- The base profile intentionally keeps the ARIB branch small. Exact
--- regional fields can be standardized later or placed in extensions.
+-- The initial ARIB branch is deliberately compact. A future public
+-- ARIB profile may define more interoperable fields in this module.
 AribT760Metadata ::= SEQUENCE {
+    -- Data rate in units of 500 kbit/s, when exposed.
     dataRate500Kbps        MeasurementValue OPTIONAL,
+    -- Reported transmit power in dBm times 10.
     txPowerDbmX10          MeasurementValue OPTIONAL,
-    extensions             ExtensionContainers OPTIONAL,
     ...
 }
 

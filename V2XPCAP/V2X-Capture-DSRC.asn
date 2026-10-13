@@ -2,54 +2,56 @@
 -- V2X Capture Metadata Profile
 -- IEEE 802.11p / DSRC technology-specific metadata.
 --
--- Native packet data shall remain in conventional order:
+-- Native packet data stays in conventional order:
 --     Radiotap header -> IEEE 802.11 / WAVE frame
 --
--- This module adds observer-side metadata only. It shall not add a
--- V2X
--- wrapper before Radiotap or duplicate standard Radiotap information.
+-- This module adds observer-side values only. It does not insert a
+-- V2X wrapper before Radiotap or reproduce Radiotap fields.
 --
-
 V2X-Capture-DSRC
 { iso(1) identified-organization(3) v2xCapture(99999)
-  dsrc(4) version1(1) }
+  dsrc(5) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
 
 IMPORTS
-    MeasurementValue, ExtensionContainers
+    MeasurementValue
 FROM V2X-Capture-Common;
 
 -- Whether native Radiotap bytes begin the DSRC packet data.
 RadiotapStatus ::= ENUMERATED {
-    -- Packet data begins with a Radiotap header before the 802.11
-    -- frame.
+    -- Packet data starts with a Radiotap header before 802.11 bytes.
     presentInPacketData(0),
     -- Capture source did not provide Radiotap information.
     unavailable(1),
-    -- Radiotap does not apply to this DSRC data source.
+    -- Radiotap does not apply to this DSRC capture source.
     notApplicable(2),
     -- Producer cannot determine the Radiotap condition.
     unknown(255)
 }
 
--- Values here are optional cross-RAT normalization/observation
--- values.
--- Radiotap remains the native source for DSRC packet-data radio
--- fields.
+-- Optional normalized observations. Radiotap remains the
+-- authoritative
+-- native source for DSRC packet-data radio information.
 DsrcPhyObservation ::= SEQUENCE {
+    -- States whether Radiotap is present in packet data.
     radiotapStatus         RadiotapStatus,
+    -- Channel number when exposed or derived.
     channelNumber          MeasurementValue OPTIONAL,
+    -- Data rate in units of 500 kbit/s when applicable.
     dataRate500Kbps        MeasurementValue OPTIONAL,
+    -- MCS index when applicable.
     mcsIndex               MeasurementValue OPTIONAL,
+    -- Reported transmit power in dBm times 10.
     txPowerDbmX10          MeasurementValue OPTIONAL,
+    -- Antenna index selected or reported by source.
     antennaIndex           MeasurementValue OPTIONAL,
-    extensions             ExtensionContainers OPTIONAL,
     ...
 }
 
+-- DSRC-only metadata associated with this logical packet.
 DsrcMetadata ::= SEQUENCE {
+    -- Optional DSRC PHY observation summary.
     phy                    DsrcPhyObservation OPTIONAL,
-    extensions             ExtensionContainers OPTIONAL,
     ...
 }
 

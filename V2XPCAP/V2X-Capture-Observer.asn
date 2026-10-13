@@ -1,335 +1,210 @@
 --
 -- V2X Capture Metadata Profile
--- Observer timing, location, motion, provenance, and radio data.
+-- Observer location, motion, provenance, and radio observations.
 --
--- An observer can be a receiver, transmitter, sniffer, replay source,
--- or another capture agent. They describe that observer, not a
--- remote V2X participant. All encoded times are whole microseconds.
+-- An observer is the receiver, transmitter, sniffer, replay source,
+-- or capture agent. These values describe that observer, not a remote
+-- V2X participant. EPB time is defined by the associated IDB profile
+-- option; no duplicate timestamp is encoded in this module.
 --
 V2X-Capture-Observer
 { iso(1) identified-organization(3) v2xCapture(99999)
-  observer(2) version1(1) }
+  observer(4) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-
 IMPORTS
     ReceiverId, InterfaceId, Availability, MeasurementValue,
-    ExtensionContainers
+    DurationUs
 FROM V2X-Capture-Common;
-
--- Integral microseconds are the profile's fixed encoded time
--- resolution.
-Microseconds ::= INTEGER (0..18446744073709551615)
-
-SignedMicroseconds ::= INTEGER (
-    -9223372036854775808..9223372036854775807
-)
-
--- timeEpoch identifies the epoch used by valueUs. It is not a time
--- scale and it is not a synchronization protocol. PTP and gPTP may
--- discipline a clock, but timestamps they supply use UTC, GPS, TAI,
--- or another declared epoch.
-TimeEpoch ::= ENUMERATED {
-    -- Coordinated Universal Time epoch.
-    utc(0),
-    -- GPS/GNSS system-time epoch; UTC offset is separately reported.
-    gps(1),
-    -- International Atomic Time epoch.
-    tai(2),
-    -- Another documented epoch named through an extension.
-    other(254),
-    -- Producer cannot identify the epoch.
-    unknown(255)
-}
-
--- source identifies the reference or mechanism that disciplined the
--- observer clock. cellularNetwork means time acquired through a
--- cellular modem from its serving network. It replaces the ambiguous
--- terms wwan and cellularModemTime.
---
--- localOscillator identifies the active clock when no external source
--- is identified. Whether it is currently disciplined is reported by
--- TimeSyncState, not by a second source value.
-TimeSyncSource ::= ENUMERATED {
-    -- GNSS-derived timing without a separately exposed 1PPS
-    -- reference.
-    gnss(0),
-    -- GNSS timing disciplined by a one-pulse-per-second reference.
-    gnssOnePps(1),
-    -- Network Time Protocol source.
-    ntp(2),
-    -- Precision Time Protocol source.
-    ptp(3),
-    -- Generalized PTP source, often an automotive Ethernet time
-    -- domain.
-    gptp(4),
-    -- Serving-network time delivered through a cellular modem.
-    cellularNetwork(5),
-    -- Local oscillator as clock basis or fallback reference.
-    localOscillator(6),
-    -- A documented source outside this common list.
-    other(254),
-    -- Producer cannot identify the time source.
-    unknown(255)
-}
-
--- state reports the current synchronization condition. holdover means
--- a previously disciplined clock is maintained without its reference.
--- freeRunning means the clock has no active external discipline.
-TimeSyncState ::= ENUMERATED {
-    -- Actively disciplined and within its source's locked criteria.
-    locked(0),
-    -- Reference was lost; prior discipline is maintained by
-    -- oscillator.
-    holdover(1),
-    -- Clock is acquiring or converging toward its timing reference.
-    synchronizing(2),
-    -- Reference exists, but quality is below normal operating
-    -- criteria.
-    degraded(3),
-    -- No external discipline is active; clock runs on local
-    -- oscillator.
-    freeRunning(4),
-    -- Producer cannot determine synchronization state.
-    unknown(255)
-}
-
--- uncertaintyUs has the statistical interpretation selected here.
--- confidencePercent applies when confidenceInterval is selected.
-TimeUncertaintySemantics ::= ENUMERATED {
-    -- uncertaintyUs is asserted to be an absolute error bound.
-    absoluteBound(0),
-    -- uncertaintyUs is one standard deviation.
-    standardDeviation(1),
-    -- uncertaintyUs is two standard deviations.
-    twoSigma(2),
-    -- uncertaintyUs is a confidence-interval half-width.
-    confidenceInterval(3),
-    -- Producer provides an estimate without stronger statistical
-    -- meaning.
-    estimate(4),
-    -- Interpretation of uncertaintyUs is not known.
-    unknown(255)
-}
-
--- This reports the observer's knowledge of leap-second information.
-LeapSecondState ::= ENUMERATED {
-    -- Current leap-second offset is known and applicable.
-    current(0),
-    -- Positive leap second is scheduled but not yet effective.
-    pendingInsertion(1),
-    -- Negative leap second is scheduled but not yet effective.
-    pendingDeletion(2),
-    -- Known leap-second information may be out of date.
-    stale(3),
-    -- Required leap-second information was unavailable.
-    unavailable(4),
-    -- Producer cannot determine leap-second status.
-    unknown(255)
-}
-
-TimeQuality ::= SEQUENCE {
-    source                 TimeSyncSource,
-    state                  TimeSyncState,
-    uncertaintyUs          MeasurementValue OPTIONAL,
-    uncertaintySemantics   TimeUncertaintySemantics OPTIONAL,
-    confidencePercent      INTEGER (0..100) OPTIONAL,
-    holdoverAgeUs          Microseconds OPTIONAL,
-    leapSecondState        LeapSecondState OPTIONAL,
-    utcGpsOffsetSec        INTEGER (-128..127) OPTIONAL,
-    clockOffsetUs          SignedMicroseconds OPTIONAL,
-    ...
-}
-
--- This timestamp form is used for receive-side observations.
-ReceiveTimestamp ::= SEQUENCE {
-    valueUs                Microseconds,
-    timeEpoch              TimeEpoch,
-    quality                TimeQuality OPTIONAL,
-    ...
-}
-
--- This point states what the transmit timestamp measures. A producer
--- shall select the most accurate point it knows. It shall not
--- label host submission as an over-the-air start time.
-TransmitTimePoint ::= ENUMERATED {
-    -- Packet was created by application or protocol processing.
-    packetCreated(0),
-    -- Packet was submitted to the modem or radio interface.
-    submittedToRadio(1),
-    -- Radio assigned or announced a transmission opportunity.
-    scheduledForTransmission(2),
-    -- Over-the-air emission began, if accurately exposed.
-    transmissionStarted(3),
-    -- Over-the-air emission completed, if accurately exposed.
-    transmissionCompleted(4),
-    -- Capture source did not identify the timestamp event.
-    unknown(255)
-}
-
--- This timestamp form is used for transmit-side observations.
-TransmitTimestamp ::= SEQUENCE {
-    valueUs                Microseconds,
-    timeEpoch              TimeEpoch,
-    timePoint              TransmitTimePoint,
-    quality                TimeQuality OPTIONAL,
-    ...
-}
-
--- Latitude, longitude, and altitude use the same geodetic datum.
--- WGS-84 is the normal datum. If datum is other, otherDatumId shall
--- identify it. Consumers shall not silently interpret it as
--- WGS-84. altitudeCm is measured relative to that datum's ellipsoid.
-GeodeticDatum ::= ENUMERATED {
-    -- World Geodetic System 1984 datum.
+-- Identifies the coordinate reference system (CRS) used for all
+-- position components in the containing GeodeticLocation.
+-- A CRS is broader than a geodetic datum: it can describe a mandated
+-- transform or protected coordinate representation as well.
+CoordinateReferenceSystemKind ::= ENUMERATED {
+    -- Direct World Geodetic System 1984 coordinates.
     wgs84(0),
-    -- Another datum; otherDatumId identifies that datum.
+    -- China GCJ-02 transformed geographic coordinates.
+    gcj02(1),
+    -- Another named CRS, datum, transformed, or protected system.
     other(254),
-    -- Datum unknown; consumers should not assume WGS-84.
+    -- The producer cannot identify the coordinate system.
     unknown(255)
 }
-
+-- For other, systemId identifies the governing specification or
+-- registry. A reader shall never assume that
+-- values are WGS-84 or safely convertible merely because they are
+-- carried as latitude and longitude.
+CoordinateReferenceSystem ::= SEQUENCE {
+    -- CRS, datum, transform, or protected-system category.
+    kind                   CoordinateReferenceSystemKind,
+    -- Required when kind is other; UTF-8 identifier of the system.
+    -- Examples include a registry identifier or specification name.
+    systemId               UTF8String (SIZE(1..128)) OPTIONAL,
+    ...
+}
+-- Latitude, longitude, and altitude use the same declared coordinate
+-- reference system. For WGS-84, altitude is ellipsoidal height. For
+-- another CRS, the system identified by systemId defines the
+-- vertical interpretation. A producer shall not silently mix systems.
 GeodeticLocation ::= SEQUENCE {
-    datum                  GeodeticDatum,
-    otherDatumId           OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Coordinate system for latitude, longitude, and altitude.
+    coordinateReferenceSystem
+                           CoordinateReferenceSystem,
+    -- Latitude in degrees multiplied by 10^7 in the stated system.
     latitudeE7             INTEGER (-900000000..900000000),
+    -- Longitude in degrees multiplied by 10^7 in the stated system.
     longitudeE7            INTEGER (-1800000000..1800000000),
+    -- Height in centimeters in the stated system, if known.
     altitudeCm             INTEGER (-10000000..100000000) OPTIONAL,
     ...
 }
-
--- headingDegX100 is [0, 36000) degrees clockwise from true north.
--- No heading-reference field is encoded; true north is required.
+-- Observer motion at or near the EPB capture time.
+-- Heading is always clockwise degrees from true north.
 ObserverMotion ::= SEQUENCE {
+    -- Observer ground speed in centimeters per second.
     speedCmPerSec          MeasurementValue OPTIONAL,
+    -- Heading in degrees times 100, constrained to [0, 36000).
     headingDegX100         MeasurementValue OPTIONAL,
     ...
 }
-
--- HEPE is a horizontal estimated-position error in centimeters.
--- source names the positioning source or method, such as GNSS.
+-- Position quality and motion for the capture observer.
 ObserverLocation ::= SEQUENCE {
+    -- Geodetic position of the capture observer.
     position               GeodeticLocation,
+    -- Horizontal estimated position error in centimeters.
     hepeCm                 INTEGER (0..4294967295) OPTIONAL,
-    ageUs                  Microseconds OPTIONAL,
+    -- Age of position/motion source data at EPB capture time.
+    ageUs                  DurationUs OPTIONAL,
+    -- Positioning source or method, for example GNSS.
     source                 OCTET STRING (SIZE(1..32)) OPTIONAL,
+    -- Optional observer speed and true-north heading.
     motion                 ObserverMotion OPTIONAL,
     ...
 }
-
--- captureSource identifies how packet bytes or observations entered
--- the capture system. It does not identify the V2X RAT.
+-- How packet bytes or observations entered the capture system.
 CaptureSource ::= ENUMERATED {
     -- Antenna or RF observation of an over-the-air packet.
     overTheAir(0),
     -- Packet or metadata came from a modem diagnostic/export path.
     modemExport(1),
-    -- Packet or metadata came from OS/driver export.
+    -- Packet or metadata came from an OS or driver export path.
     driverExport(2),
     -- Packet was replayed from stored capture or test data.
     replay(3),
     -- Packet was injected for test, simulation, or radio operation.
     injected(4),
-    -- Observation was synthesized or computed after capture.
+    -- Observation was synthesized after original capture.
     derived(5),
     -- Capture origin cannot be identified.
     unknown(255)
 }
-
+-- Identifies the capture path and implementation when known.
 ObserverProvenance ::= SEQUENCE {
+    -- Receiver, transmitter, or sniffer identity.
     receiverId             ReceiverId OPTIONAL,
+    -- Producer's capture-interface identity.
     interfaceId            InterfaceId OPTIONAL,
+    -- Ingress path for bytes or metadata.
     captureSource          CaptureSource OPTIONAL,
+    -- Platform or product identity.
     platformId             OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Hardware revision or identifying version.
     hardwareVersion        OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Software/firmware revision relevant to capture behavior.
     softwareVersion        OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Driver or modem version, if separately known.
     driverOrModemVersion   OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Capture-agent name/version.
     captureAgent           OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Identifier for the antenna mapping used by the producer.
     antennaMapId           OCTET STRING (SIZE(1..64)) OPTIONAL,
     ...
 }
-
--- Values are receive-side radio measurements for the listed antenna.
+-- Receive-side per-antenna radio measurements.
 AntennaRssi ::= SEQUENCE {
+    -- Producer's zero-based antenna index.
     antennaIndex           INTEGER (0..255),
+    -- RSSI in dBm times 10.
     rssiDbmX10             MeasurementValue,
+    -- RSRP in dBm times 10, when applicable.
     rsrpDbmX10             MeasurementValue OPTIONAL,
+    -- RSRQ in dB times 10, when applicable.
     rsrqDbX10              MeasurementValue OPTIONAL,
+    -- SINR in dB times 10, when applicable.
     sinrDbX10              MeasurementValue OPTIONAL,
     ...
 }
-
--- Name/semantics of the channel utilization quantity reported.
+-- Name and interpretation of a channel-utilization measurement.
 ChannelLoadKind ::= ENUMERATED {
-    -- Fraction of time or samples channel is busy, expressed as a
-    -- ratio.
+    -- Busy fraction or samples expressed as a ratio.
     channelBusyRatio(0),
-    -- Probability that channel is busy under the source's stated
-    -- method.
+    -- Probability that the channel is busy under stated method.
     channelBusyProbability(1),
-    -- Generic load metric; source identifies exact calculation.
+    -- Generic channel-load metric with source-defined calculation.
     channelLoad(2),
-    -- Another documented metric identified via extension/source.
+    -- Another documented metric.
     other(254),
-    -- Producer cannot identify the channel-load metric.
+    -- Producer cannot identify the metric.
     unknown(255)
 }
-
--- valuePercentX100 has units of 0.01 percent. The measurement window
--- and source make a CBP, CBR, or channel-load value interpretable.
+-- Channel load is only meaningful with its measurement window/method.
 ChannelLoad ::= SEQUENCE {
+    -- Metric represented by valuePercentX100.
     kind                   ChannelLoadKind,
+    -- Value in 0.01 percent units.
     valuePercentX100       MeasurementValue,
-    measurementWindowUs    Microseconds OPTIONAL,
+    -- Interval over which the value was measured.
+    measurementWindowUs    DurationUs OPTIONAL,
+    -- Source or method that produced the metric.
     source                 OCTET STRING (SIZE(1..32)) OPTIONAL,
     ...
 }
-
--- This contains receive-side RF measurements. It is intentionally
--- distinct from TransmitRadioObservation because RSSI and RSRP are
--- normally meaningful only for reception.
+-- Receive-side RF observations at or near the EPB capture time.
 ReceiveRadioObservation ::= SEQUENCE {
+    -- RSSI and optional related values for each exposed antenna.
     antennaRssi            SEQUENCE (SIZE(0..MAX)) OF AntennaRssi
                             OPTIONAL,
+    -- Estimated propagation delay in nanoseconds.
     propagationDelayNs     MeasurementValue OPTIONAL,
+    -- Channel busy/load context when measured.
     channelLoad            ChannelLoad OPTIONAL,
+    -- Tuned or observed center frequency in kHz.
     centerFrequencyKHz     MeasurementValue OPTIONAL,
+    -- Observed channel bandwidth in kHz.
     bandwidthKHz           MeasurementValue OPTIONAL,
     ...
 }
-
--- This contains transmitter-side RF settings or measurements.
--- Power is producer-reported and need not represent calibrated
--- EIRP unless the producer documents that interpretation.
+-- Transmit-side RF settings or measurements near the EPB time.
 TransmitRadioObservation ::= SEQUENCE {
+    -- Selected transmit antenna index, when exposed.
     antennaIndex           MeasurementValue OPTIONAL,
+    -- Producer-reported transmit power in dBm times 10.
     transmitPowerDbmX10    MeasurementValue OPTIONAL,
+    -- Channel busy/load context when measured.
     channelLoad            ChannelLoad OPTIONAL,
+    -- Tuned transmit center frequency in kHz.
     centerFrequencyKHz     MeasurementValue OPTIONAL,
+    -- Transmit channel bandwidth in kHz.
     bandwidthKHz           MeasurementValue OPTIONAL,
     ...
 }
-
--- Used for a packet captured from the air or received through modem,
--- driver, replay source, or other receive-side interface.
+-- Receive-side context for a logical packet.
 ReceiveObservation ::= SEQUENCE {
-    timestamp              ReceiveTimestamp,
+    -- Observer position/motion near the EPB capture timestamp.
     location               ObserverLocation OPTIONAL,
+    -- Receive-side radio observations near EPB capture timestamp.
     radio                  ReceiveRadioObservation OPTIONAL,
+    -- Capture source and implementation identity.
     provenance             ObserverProvenance OPTIONAL,
-    extensions             ExtensionContainers OPTIONAL,
     ...
 }
-
--- Used for a packet emitted, scheduled, or submitted by the observer.
--- The timestamp point prevents host-side events from being confused
--- with actual over-the-air transmission timing.
+-- Transmit-side context for a logical packet.
 TransmitObservation ::= SEQUENCE {
-    timestamp              TransmitTimestamp,
+    -- Observer position/motion near the EPB capture timestamp.
     location               ObserverLocation OPTIONAL,
+    -- Transmit-side radio settings or measurements.
     radio                  TransmitRadioObservation OPTIONAL,
+    -- Capture source and implementation identity.
     provenance             ObserverProvenance OPTIONAL,
-    extensions             ExtensionContainers OPTIONAL,
     ...
 }
-
 END
