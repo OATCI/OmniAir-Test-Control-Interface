@@ -1,0 +1,202 @@
+--
+-- V2X Capture Metadata Profile
+-- Observer location, motion, provenance, and radio observations.
+--
+-- An observer is the receiver, transmitter, sniffer, replay source,
+-- or capture agent. These values describe that observer, not a remote
+-- V2X participant. EPB time is defined by the associated IDB profile
+-- option; no duplicate timestamp is encoded in this module.
+--
+V2X-Capture-Observer
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  observer(4) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+IMPORTS
+    ReceiverId, InterfaceId, DurationUs, ValueSource
+FROM V2X-Capture-Common;
+-- Geodetic datum for latitude, longitude, and optional altitude.
+GeodeticDatum ::= ENUMERATED {
+    -- World Geodetic System 1984.
+    wgs84(0),
+    -- Another datum named by otherDatumId.
+    other(254),
+    -- Datum is unknown; a consumer shall not assume WGS-84.
+    unknown(255)
+}
+-- All coordinates, including altitude, use the same geodetic datum.
+-- altitudeCm is height relative to that datum's reference ellipsoid.
+GeodeticLocation ::= SEQUENCE {
+    -- Datum for latitude, longitude, and altitude.
+    datum                  GeodeticDatum,
+    -- Required when datum is other.
+    otherDatumId           OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Latitude in degrees multiplied by 10^7.
+    latitudeE7             INTEGER (-900000000..900000000),
+    -- Longitude in degrees multiplied by 10^7.
+    longitudeE7            INTEGER (-1800000000..1800000000),
+    -- Ellipsoidal height in centimeters, if exposed.
+    altitudeCm             INTEGER (-10000000..100000000) OPTIONAL,
+    ...
+}
+-- Observer motion at or near the EPB capture time.
+-- Heading is always clockwise degrees from true north.
+ObserverMotion ::= SEQUENCE {
+    -- Motion is normally estimated by its position/motion provider.
+    -- Set dataSource if a direct wheel, IMU, or other source is used.
+    dataSource             ValueSource OPTIONAL,
+    -- Observer ground speed in centimeters per second.
+    speedCmPerSec          INTEGER (0..4294967295) OPTIONAL,
+    -- Heading in degrees times 100, constrained to [0, 36000).
+    headingDegX100         INTEGER (0..35999) OPTIONAL,
+    ...
+}
+-- Position quality and motion for the capture observer.
+ObserverLocation ::= SEQUENCE {
+    -- GNSS and all other practical geodetic fixes are estimates.
+    -- dataSource is present only when a different interpretation is
+    -- needed, for example a surveyed fixed receiver location.
+    dataSource             ValueSource OPTIONAL,
+    -- Geodetic position of the capture observer.
+    position               GeodeticLocation,
+    -- Horizontal estimated position error in centimeters.
+    hepeCm                 INTEGER (0..4294967295) OPTIONAL,
+    -- Age of position/motion source data at EPB capture time.
+    ageUs                  DurationUs OPTIONAL,
+    -- Positioning method, for example GNSS, RTK, or surveyed.
+    positioningMethod      OCTET STRING (SIZE(1..32)) OPTIONAL,
+    -- Optional observer speed and true-north heading.
+    motion                 ObserverMotion OPTIONAL,
+    ...
+}
+-- How packet bytes or observations entered the capture system.
+CaptureSource ::= ENUMERATED {
+    -- Antenna or RF observation of an over-the-air packet.
+    overTheAir(0),
+    -- Packet or metadata came from a modem diagnostic/export path.
+    modemExport(1),
+    -- Packet or metadata came from an OS or driver export path.
+    driverExport(2),
+    -- Packet was replayed from stored capture or test data.
+    replay(3),
+    -- Packet was injected for test, simulation, or radio operation.
+    injected(4),
+    -- Observation was synthesized after original capture.
+    derived(5),
+    -- Capture origin cannot be identified.
+    unknown(255)
+}
+-- Identifies the capture path and implementation when known.
+ObserverProvenance ::= SEQUENCE {
+    -- Receiver, transmitter, or sniffer identity.
+    receiverId             ReceiverId OPTIONAL,
+    -- Producer's capture-interface identity.
+    interfaceId            InterfaceId OPTIONAL,
+    -- Ingress path for bytes or metadata.
+    captureSource          CaptureSource OPTIONAL,
+    -- Platform or product identity.
+    platformId             OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Hardware revision or identifying version.
+    hardwareVersion        OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Software/firmware revision relevant to capture behavior.
+    softwareVersion        OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Driver or modem version, if separately known.
+    driverOrModemVersion   OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Capture-agent name/version.
+    captureAgent           OCTET STRING (SIZE(1..64)) OPTIONAL,
+    -- Identifier for the antenna mapping used by the producer.
+    antennaMapId           OCTET STRING (SIZE(1..64)) OPTIONAL,
+    ...
+}
+-- Receive-side per-antenna radio measurements. Values are direct
+-- radio observations when included; no source field is needed.
+AntennaRssi ::= SEQUENCE {
+    -- Producer's zero-based antenna index.
+    antennaIndex           INTEGER (0..255),
+    -- RSSI in dBm times 10.
+    rssiDbmX10             INTEGER (-32768..32767),
+    -- RSRP in dBm times 10, when applicable.
+    rsrpDbmX10             INTEGER (-32768..32767) OPTIONAL,
+    -- RSRQ in dB times 10, when applicable.
+    rsrqDbX10              INTEGER (-32768..32767) OPTIONAL,
+    -- SINR in dB times 10, when applicable.
+    sinrDbX10              INTEGER (-32768..32767) OPTIONAL,
+    ...
+}
+-- Name and interpretation of a channel-utilization measurement.
+ChannelLoadKind ::= ENUMERATED {
+    -- Busy fraction or samples expressed as a ratio.
+    channelBusyRatio(0),
+    -- Probability that the channel is busy under stated method.
+    channelBusyProbability(1),
+    -- Generic channel-load metric with producer-defined calculation.
+    channelLoad(2),
+    -- Another documented metric.
+    other(254),
+    -- Producer cannot identify the metric.
+    unknown(255)
+}
+-- Channel load is only meaningful with its measurement window/method.
+ChannelLoad ::= SEQUENCE {
+    -- Metric represented by valuePercentX100.
+    kind                   ChannelLoadKind,
+    -- Channel load is normally derived over a measurement interval.
+    -- Set dataSource when the source reports a direct measurement.
+    dataSource             ValueSource OPTIONAL,
+    -- Value in 0.01 percent units.
+    valuePercentX100       INTEGER (0..10000),
+    -- Interval over which the value was measured.
+    measurementWindowUs    DurationUs OPTIONAL,
+    -- Producer method or measurement definition, when needed.
+    method                 OCTET STRING (SIZE(1..32)) OPTIONAL,
+    ...
+}
+-- Receive-side RF observations at or near the EPB capture time.
+ReceiveRadioObservation ::= SEQUENCE {
+    -- RSSI and optional related values for each exposed antenna.
+    antennaRssi            SEQUENCE (SIZE(0..MAX)) OF AntennaRssi
+                            OPTIONAL,
+    -- Estimated propagation delay in nanoseconds.
+    propagationDelayNs     INTEGER (0..4294967295) OPTIONAL,
+    -- Channel busy/load context when measured.
+    channelLoad            ChannelLoad OPTIONAL,
+    -- Tuned or observed center frequency in kHz.
+    centerFrequencyKHz     INTEGER (0..4294967295) OPTIONAL,
+    -- Observed channel bandwidth in kHz.
+    bandwidthKHz           INTEGER (0..4294967295) OPTIONAL,
+    ...
+}
+-- Transmit-side RF settings/measurements near EPB capture time.
+TransmitRadioObservation ::= SEQUENCE {
+    -- Selected transmit antenna index, when exposed.
+    antennaIndex           INTEGER (0..255) OPTIONAL,
+    -- Producer-reported transmit power in dBm times 10.
+    transmitPowerDbmX10    INTEGER (-32768..32767) OPTIONAL,
+    -- Channel busy/load context when measured.
+    channelLoad            ChannelLoad OPTIONAL,
+    -- Tuned transmit center frequency in kHz.
+    centerFrequencyKHz     INTEGER (0..4294967295) OPTIONAL,
+    -- Transmit channel bandwidth in kHz.
+    bandwidthKHz           INTEGER (0..4294967295) OPTIONAL,
+    ...
+}
+-- Receive-side context for a logical packet.
+ReceiveObservation ::= SEQUENCE {
+    -- Observer position/motion near the EPB capture timestamp.
+    location               ObserverLocation OPTIONAL,
+    -- Receive-side radio observations near EPB capture timestamp.
+    radio                  ReceiveRadioObservation OPTIONAL,
+    -- Capture source and implementation identity.
+    provenance             ObserverProvenance OPTIONAL,
+    ...
+}
+-- Transmit-side context for a logical packet.
+TransmitObservation ::= SEQUENCE {
+    -- Observer position/motion near the EPB capture timestamp.
+    location               ObserverLocation OPTIONAL,
+    -- Transmit-side radio settings or measurements.
+    radio                  TransmitRadioObservation OPTIONAL,
+    -- Capture source and implementation identity.
+    provenance             ObserverProvenance OPTIONAL,
+    ...
+}
+END

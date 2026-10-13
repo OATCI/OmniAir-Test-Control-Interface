@@ -1,0 +1,28 @@
+--
+-- V2X Capture Metadata Profile
+-- Japan ARIB STD-T760 / ITS-Connect RAT-specific metadata.
+--
+-- This branch is independent of IEEE 802.11p and cellular sidelink.
+-- It permits regional radio data without overloading the common model
+-- or another RAT's native packet representation.
+--
+V2X-Capture-ARIB-T760
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  aribT760(6) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+IMPORTS
+    ValueSource
+FROM V2X-Capture-Common;
+-- The initial ARIB branch is deliberately compact. A future public
+-- ARIB profile may define more interoperable fields in this module.
+AribT760Metadata ::= SEQUENCE {
+    -- Values are normally direct observations from the ARIB radio.
+    -- Set dataSource if a tool derives or estimates these values.
+    dataSource             ValueSource OPTIONAL,
+    -- Data rate in units of 500 kbit/s, when exposed.
+    dataRate500Kbps        INTEGER (0..65535) OPTIONAL,
+    -- Reported transmit power in dBm times 10.
+    txPowerDbmX10          INTEGER (-32768..32767) OPTIONAL,
+    ...
+}
+END

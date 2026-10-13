@@ -1,0 +1,77 @@
+--
+-- V2X Capture Metadata Profile
+-- Base per-logical-packet metadata object.
+--
+-- The base object is UPER encoded in one OmniAir-defined Custom
+-- Binary Option on its Enhanced Packet Block. The standard EPB
+-- timestamp is the sole capture timestamp. Its epoch and capture
+-- reference point are declared by the associated IDB profile option.
+--
+-- Observer state and analysis annotations remain in this per-EPB
+-- object. The profile does not use a correlated observer-state or
+-- analysis block.
+--
+V2X-Capture-Record
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  record(9) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+IMPORTS
+    RecordId, CaptureSessionId, CorrelationId, V2XTechnology,
+    Direction, PayloadDescriptor
+FROM V2X-Capture-Common
+    ReceiveObservation, TransmitObservation
+FROM V2X-Capture-Observer
+    AnalysisAnnotations
+FROM V2X-Capture-Analysis
+    DsrcMetadata
+FROM V2X-Capture-DSRC
+    AribT760Metadata
+FROM V2X-Capture-ARIB-T760
+    LteV2xMetadata
+FROM V2X-Capture-LTE-V2X
+    NrV2xMetadata
+FROM V2X-Capture-NR-V2X;
+-- Selects only the RAT-specific metadata branch matching technology.
+TechnologyMetadata ::= CHOICE {
+    -- DSRC observer-side metadata; Radiotap remains packet data.
+    dsrc                   DsrcMetadata,
+    -- ARIB STD-T760 observer-side metadata.
+    aribT760               AribT760Metadata,
+    -- LTE-V2X compact summary.
+    lteV2x                 LteV2xMetadata,
+    -- NR-V2X compact summary.
+    nrV2x                  NrV2xMetadata,
+    -- A nonstandard RAT summary defined outside this base profile.
+    other                  OCTET STRING (SIZE(0..65535)),
+    ...
+}
+-- sessionId plus recordId is the primary semantic correlation key.
+-- For receive direction, receiveObservation should be present. For
+-- transmit direction, transmitObservation should be present.
+V2XCaptureMetadata ::= SEQUENCE {
+    -- Schema version for this per-EPB metadata object.
+    profileVersion         INTEGER (1..255),
+    -- Capture-session portion of the primary correlation key.
+    sessionId              CaptureSessionId,
+    -- Per-session portion of the primary correlation key.
+    recordId               RecordId,
+    -- Supplemental producer-specific correlation value.
+    correlationId          CorrelationId OPTIONAL,
+    -- RAT that carried the logical packet.
+    technology             V2XTechnology,
+    -- Receive, transmit, observe, or unknown direction.
+    direction              Direction,
+    -- RAT-neutral payload classification when available.
+    payload                PayloadDescriptor OPTIONAL,
+    -- Receive-side observer context; no duplicate timestamp.
+    receiveObservation     ReceiveObservation OPTIONAL,
+    -- Transmit-side observer context; no duplicate timestamp.
+    transmitObservation    TransmitObservation OPTIONAL,
+    -- Metadata branch matching technology.
+    technologyMetadata     TechnologyMetadata OPTIONAL,
+    -- Per-packet processing and application annotations, when run.
+    -- Omit this field when no analysis was performed or available.
+    analysis               AnalysisAnnotations OPTIONAL,
+    ...
+}
+END
