@@ -12,11 +12,9 @@ V2X-Capture-DSRC
 { iso(1) identified-organization(3) v2xCapture(99999)
   dsrc(5) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-
 IMPORTS
-    MeasurementValue
+    ValueSource
 FROM V2X-Capture-Common;
-
 -- Whether native Radiotap bytes begin the DSRC packet data.
 RadiotapStatus ::= ENUMERATED {
     -- Packet data starts with a Radiotap header before 802.11 bytes.
@@ -28,31 +26,30 @@ RadiotapStatus ::= ENUMERATED {
     -- Producer cannot determine the Radiotap condition.
     unknown(255)
 }
-
--- Optional normalized observations. Radiotap remains the
--- authoritative
+-- Optional normalized values. Radiotap remains authoritative.
 -- native source for DSRC packet-data radio information.
 DsrcPhyObservation ::= SEQUENCE {
     -- States whether Radiotap is present in packet data.
     radiotapStatus         RadiotapStatus,
+    -- Normalized values are normally observed from Radiotap or radio.
+    -- Set dataSource when a tool reconstructs or estimates them.
+    dataSource             ValueSource OPTIONAL,
     -- Channel number when exposed or derived.
-    channelNumber          MeasurementValue OPTIONAL,
+    channelNumber          INTEGER (0..65535) OPTIONAL,
     -- Data rate in units of 500 kbit/s when applicable.
-    dataRate500Kbps        MeasurementValue OPTIONAL,
+    dataRate500Kbps        INTEGER (0..65535) OPTIONAL,
     -- MCS index when applicable.
-    mcsIndex               MeasurementValue OPTIONAL,
+    mcsIndex               INTEGER (0..255) OPTIONAL,
     -- Reported transmit power in dBm times 10.
-    txPowerDbmX10          MeasurementValue OPTIONAL,
+    txPowerDbmX10          INTEGER (-32768..32767) OPTIONAL,
     -- Antenna index selected or reported by source.
-    antennaIndex           MeasurementValue OPTIONAL,
+    antennaIndex           INTEGER (0..255) OPTIONAL,
     ...
 }
-
 -- DSRC-only metadata associated with this logical packet.
 DsrcMetadata ::= SEQUENCE {
     -- Optional DSRC PHY observation summary.
     phy                    DsrcPhyObservation OPTIONAL,
     ...
 }
-
 END

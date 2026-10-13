@@ -49,18 +49,13 @@ TechnologyMetadata ::= CHOICE {
 -- For receive direction, receiveObservation should be present. For
 -- transmit direction, transmitObservation should be present.
 V2XCaptureMetadata ::= SEQUENCE {
-    -- Version of the public profile schema used for this object.
-    -- A version-1 encoder writes 1. A decoder that does not support a
-    -- received version shall preserve or skip the metadata safely.
+    -- Schema version for this per-EPB metadata object.
     profileVersion         INTEGER (1..255),
-    -- A new collision-resistant 16-octet value generated for each
-    -- capture session and reused by every record in that session.
+    -- Capture-session portion of the primary correlation key.
     sessionId              CaptureSessionId,
-    -- A unique record number within sessionId. A writer should assign
-    -- it monotonically as logical packet records are created.
+    -- Per-session portion of the primary correlation key.
     recordId               RecordId,
-    -- Optional producer-specific supplemental correlation token.
-    -- It never replaces the required sessionId plus recordId key.
+    -- Supplemental producer-specific correlation value.
     correlationId          CorrelationId OPTIONAL,
     -- RAT that carried the logical packet.
     technology             V2XTechnology,
@@ -74,8 +69,8 @@ V2XCaptureMetadata ::= SEQUENCE {
     transmitObservation    TransmitObservation OPTIONAL,
     -- Metadata branch matching technology.
     technologyMetadata     TechnologyMetadata OPTIONAL,
-    -- Local stack/capture/analyzer annotations, when available.
-    -- These do not modify or assert content in the packet bytes.
+    -- Per-packet processing and application annotations, when run.
+    -- Omit this field when no analysis was performed or available.
     analysis               AnalysisAnnotations OPTIONAL,
     ...
 }

@@ -1,43 +1,33 @@
 --
 -- V2X Capture Metadata Profile
--- Common identifiers, classifications, and availability values.
+-- Common identifiers and packet classifications.
 --
 -- The profile uses existing pcapng blocks and options. It does not
--- change pcapng, any registered LinkType, or an over-the-air
--- protocol.
+-- change pcapng, a registered LinkType, or an on-air protocol.
 --
 -- UPER is the sole structured encoding for every profile-defined
--- ASN.1 object. Opaque third-party data is carried outside this
--- object
+-- ASN.1 object. Opaque third-party data is carried outside it
 -- in its own pcapng Custom Binary Option.
 --
 V2X-Capture-Common
 { iso(1) identified-organization(3) v2xCapture(99999)
   common(1) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-
 -- This OID is a draft placeholder. Replace it before publication.
-
 -- A record ID is unique within one capture session.
 RecordId ::= INTEGER (0..18446744073709551615)
-
 -- A writer creates one collision-resistant value per capture session.
 -- sessionId and recordId together are the primary correlation key.
 CaptureSessionId ::= OCTET STRING (SIZE(16))
-
 -- Identifies a receiver, transmitter, recorder, or capture appliance.
 ReceiverId ::= OCTET STRING (SIZE(1..64))
-
 -- Identifies a capture interface within the producer's environment.
 InterfaceId ::= OCTET STRING (SIZE(1..64))
-
 -- Provides supplemental correlation when a producer has one.
 -- It is never a substitute for sessionId plus recordId.
 CorrelationId ::= OCTET STRING (SIZE(1..32))
-
 -- A nonzero duration expressed in whole microseconds.
 DurationUs ::= INTEGER (1..4294967295)
-
 -- RAT used for the logical packet represented by this record.
 V2XTechnology ::= ENUMERATED {
     -- IEEE 802.11p / DSRC, normally using native Radiotap bytes.
@@ -53,7 +43,6 @@ V2XTechnology ::= ENUMERATED {
     -- The producer cannot determine the RAT.
     unknown(255)
 }
-
 -- Direction of the logical packet at this capture observer.
 Direction ::= ENUMERATED {
     -- Packet was received from air or a receive-side export.
@@ -65,48 +54,20 @@ Direction ::= ENUMERATED {
     -- The producer cannot determine the direction.
     unknown(255)
 }
-
--- Qualifies how a value was obtained or why it is absent.
--- A producer shall not use zero, an empty string, or another ordinary
--- value as an unavailable sentinel.
-Availability ::= ENUMERATED {
-    -- Directly reported by the hardware, software, or a sensor.
+-- Qualifies how a group of values was produced when that differs from
+-- the documented default for the group. A missing field means that
+-- the documented default applies; it never means that a value is
+-- absent. Individual optional values are absent when not available.
+ValueSource ::= ENUMERATED {
+    -- Directly reported by the relevant sensor, radio, or software.
     observed(0),
-    -- Deterministically calculated from reported values.
+    -- Deterministically calculated from reported or decoded values.
     derived(1),
-    -- Inferred by a model or calculation with uncertainty.
+    -- Inferred by a model or estimator and therefore uncertain.
     estimated(2),
-    -- The value could be meaningful but is unavailable for this
-    -- record.
-    notAvailable(3),
-    -- The capture path does not expose the value.
-    notExposed(4),
-    -- The value has no meaning for this RAT, packet, or direction.
-    notApplicable(5),
-    -- Relevant data existed, but the producer did not decode it.
-    notDecoded(6),
-    -- The producer cannot state which availability condition applies.
+    -- Producer cannot determine which source category applies.
     unknown(255)
 }
-
--- The containing field defines the units and valid range of value.
-MeasurementValue ::= SEQUENCE {
-    -- States whether value was observed, derived, or unavailable.
-    availability       Availability,
-    -- Present only when availability provides an actual value.
-    value              INTEGER OPTIONAL,
-    ...
-}
-
--- Compact availability-qualified Boolean.
-StatusBoolean ::= SEQUENCE {
-    -- States whether value is meaningful and available.
-    availability       Availability,
-    -- Present only when availability provides an actual Boolean.
-    value              BOOLEAN OPTIONAL,
-    ...
-}
-
 -- General classification of the packet-data payload.
 PayloadKind ::= ENUMERATED {
     -- Packet data is an IPv4 or IPv6 family payload.
@@ -118,7 +79,6 @@ PayloadKind ::= ENUMERATED {
     -- The producer cannot classify the payload.
     unknown(255)
 }
-
 -- Identifies a non-IP payload family without inferring it from the
 -- absence of an IP header.
 NonIpFamilyId ::= SEQUENCE {
@@ -128,7 +88,6 @@ NonIpFamilyId ::= SEQUENCE {
     namespace          OCTET STRING (SIZE(1..32)) OPTIONAL,
     ...
 }
-
 -- This is RAT-neutral payload classification only. PC5 Layer-2
 -- identifiers and LTE PPPP remain in their RAT-specific modules.
 PayloadDescriptor ::= SEQUENCE {
@@ -140,5 +99,4 @@ PayloadDescriptor ::= SEQUENCE {
     psid               INTEGER (0..4294967295) OPTIONAL,
     ...
 }
-
 END

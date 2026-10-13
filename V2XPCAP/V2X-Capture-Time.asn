@@ -12,18 +12,15 @@ V2X-Capture-Time
 { iso(1) identified-organization(3) v2xCapture(99999)
   time(2) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-
 IMPORTS
-    DurationUs, MeasurementValue
+    DurationUs, ValueSource
 FROM V2X-Capture-Common;
-
 -- Epoch used to interpret the standard pcapng EPB timestamp.
 -- Synchronization protocols are not epochs.
 TimeEpoch ::= ENUMERATED {
     -- Coordinated Universal Time.
     utc(0),
-    -- GPS/GNSS system time; the UTC offset may be declared
-    -- separately.
+    -- GPS/GNSS system time; UTC offset may be declared separately.
     gps(1),
     -- International Atomic Time.
     tai(2),
@@ -32,7 +29,6 @@ TimeEpoch ::= ENUMERATED {
     -- The writer cannot identify the epoch.
     unknown(255)
 }
-
 -- Mechanism or source that disciplines the observer clock.
 TimeSyncSource ::= ENUMERATED {
     -- GNSS-derived timing without a separately exposed 1PPS input.
@@ -54,25 +50,21 @@ TimeSyncSource ::= ENUMERATED {
     -- The writer cannot identify the synchronization source.
     unknown(255)
 }
-
 -- Current condition of the observer clock.
 TimeSyncState ::= ENUMERATED {
     -- Actively disciplined and within the source's lock criteria.
     locked(0),
-    -- Reference lost; prior discipline is maintained by the
-    -- oscillator.
+    -- Reference lost; prior discipline is maintained by oscillator.
     holdover(1),
     -- Clock is acquiring or converging to its reference.
     synchronizing(2),
-    -- Reference exists, but quality is below normal operating
-    -- criteria.
+    -- Reference exists, but quality is below normal criteria.
     degraded(3),
     -- No external discipline is active; clock runs locally.
     freeRunning(4),
     -- The writer cannot determine synchronization state.
     unknown(255)
 }
-
 -- Statistical interpretation of a reported time uncertainty.
 TimeUncertaintySemantics ::= ENUMERATED {
     -- Reported uncertainty is an asserted absolute error bound.
@@ -88,7 +80,6 @@ TimeUncertaintySemantics ::= ENUMERATED {
     -- The writer cannot state the uncertainty interpretation.
     unknown(255)
 }
-
 -- State of leap-second knowledge used for UTC/GPS conversion.
 LeapSecondState ::= ENUMERATED {
     -- Current offset is known and applicable.
@@ -104,15 +95,17 @@ LeapSecondState ::= ENUMERATED {
     -- The writer cannot determine leap-second status.
     unknown(255)
 }
-
 -- Quality of the clock used for the standard EPB timestamp.
 TimeQuality ::= SEQUENCE {
     -- Source that disciplines the capture clock.
     source                 TimeSyncSource,
     -- Current lock, holdover, or free-running state.
     state                  TimeSyncState,
-    -- Clock uncertainty in whole microseconds.
-    uncertaintyUs          MeasurementValue OPTIONAL,
+    -- Time quality normally comes from clock discipline software.
+    -- dataSource is present only when the normal case does not apply.
+    dataSource             ValueSource OPTIONAL,
+    -- Clock uncertainty in whole microseconds, when reported.
+    uncertaintyUs          INTEGER (0..4294967295) OPTIONAL,
     -- Defines the statistical meaning of uncertaintyUs.
     uncertaintySemantics   TimeUncertaintySemantics OPTIONAL,
     -- Confidence percent when confidenceInterval is selected.
@@ -125,7 +118,6 @@ TimeQuality ::= SEQUENCE {
     utcGpsOffsetSec        INTEGER (-128..127) OPTIONAL,
     ...
 }
-
 -- Receive-side physical or logical event represented by the EPB time.
 ReceiveTimestampPoint ::= ENUMERATED {
     -- Time at the receiver antenna/RF observation boundary.
@@ -139,12 +131,9 @@ ReceiveTimestampPoint ::= ENUMERATED {
     -- The writer cannot identify the receive timestamp point.
     unknown(255)
 }
-
--- Transmit-side physical or logical event represented by the EPB
--- time.
+-- Transmit-side event represented by the EPB time.
 TransmitTimestampPoint ::= ENUMERATED {
-    -- Time the packet was created by application or protocol
-    -- software.
+    -- Time the packet was created by application/protocol software.
     packetCreated(0),
     -- Time the packet was submitted to the modem or radio.
     submittedToRadio(1),
@@ -157,5 +146,4 @@ TransmitTimestampPoint ::= ENUMERATED {
     -- The writer cannot identify the transmit timestamp point.
     unknown(255)
 }
-
 END

@@ -3,19 +3,16 @@
 -- LTE-V2X summary for one logical V2X packet.
 --
 -- IEEE 1609.3 LTE-V2X processing includes MAC, RLC, and PDCP, but
--- this
--- profile does not reproduce their raw bytes. It carries compact
+-- this profile does not reproduce their raw bytes. It carries compact
 -- observations that a modem or driver is likely to expose.
 --
 V2X-Capture-LTE-V2X
 { iso(1) identified-organization(3) v2xCapture(99999)
   lteV2x(7) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-
 IMPORTS
-    Availability, MeasurementValue, StatusBoolean
+    ValueSource
 FROM V2X-Capture-Common;
-
 -- LTE PC5 Layer-2 identifiers and PPPP are LTE-specific. They are not
 -- common payload fields. Source L2 ID is 24 bits; destination ID may
 -- be 16 or 24 bits according to the applicable LTE V2X context.
@@ -28,55 +25,54 @@ LtePc5Addressing ::= SEQUENCE {
     pppp                   INTEGER (1..8) OPTIONAL,
     ...
 }
-
 -- SCI1 is LTE sidelink control on PSCCH. Values are capture-side
 -- observations, not a reconstructed SCI bit field.
 LteSci1Observation ::= SEQUENCE {
-    -- Whether SCI1 was exposed and decoded.
-    availability            Availability,
+    -- Decoded SCI fields are normally observed from a radio export.
+    -- Set dataSource only when a tool derives or estimates them.
+    dataSource             ValueSource OPTIONAL,
     -- SCI priority codepoint; separate from PC5 PPPP.
-    priority                MeasurementValue OPTIONAL,
+    priority               INTEGER (0..65535) OPTIONAL,
     -- SCI resource-reservation codepoint.
-    resourceReservation     MeasurementValue OPTIONAL,
+    resourceReservation    INTEGER (0..65535) OPTIONAL,
     -- SCI frequency-resource allocation codepoint.
-    frequencyResource       MeasurementValue OPTIONAL,
+    frequencyResource      INTEGER (0..65535) OPTIONAL,
     -- SCI time-resource or time-gap codepoint.
-    timeGap                 MeasurementValue OPTIONAL,
+    timeGap                INTEGER (0..65535) OPTIONAL,
     -- SCI modulation and coding scheme codepoint.
-    mcs                     MeasurementValue OPTIONAL,
+    mcs                    INTEGER (0..65535) OPTIONAL,
     -- SCI retransmission-index codepoint.
-    retransmissionIndex     MeasurementValue OPTIONAL,
+    retransmissionIndex    INTEGER (0..65535) OPTIONAL,
     -- SCI transmission-format codepoint, if exposed.
-    transmissionFormat      MeasurementValue OPTIONAL,
+    transmissionFormat     INTEGER (0..65535) OPTIONAL,
     ...
 }
-
 -- Logical-packet summary only. Raw RLC/PDCP bytes, per-segment rows,
--- per-transport-block rows, and HARQ-event lists are outside the
--- core.
+-- per-transport-block rows, or HARQ-event lists are outside the core.
 LteLowerLayerSummary ::= SEQUENCE {
+    -- Summary is normally observed in a modem or driver export.
+    -- Set dataSource if a recorder computes it from other inputs.
+    dataSource             ValueSource OPTIONAL,
     -- Whether HARQ was used for this logical packet.
-    harqUsed                StatusBoolean OPTIONAL,
+    harqUsed               BOOLEAN OPTIONAL,
     -- Known HARQ transmissions, if the source supplies a count.
-    harqTransmissionCount   MeasurementValue OPTIONAL,
+    harqTransmissionCount  INTEGER (0..65535) OPTIONAL,
     -- Known RLC segments summarized by this logical packet.
-    rlcSegmentCount          MeasurementValue OPTIONAL,
+    rlcSegmentCount         INTEGER (0..65535) OPTIONAL,
     -- Reported RLC errors associated with this logical packet.
-    rlcErrorCount            MeasurementValue OPTIONAL,
+    rlcErrorCount           INTEGER (0..65535) OPTIONAL,
     -- Reported PDCP errors associated with this logical packet.
-    pdcpErrorCount           MeasurementValue OPTIONAL,
+    pdcpErrorCount          INTEGER (0..65535) OPTIONAL,
     ...
 }
-
 -- LTE-specific metadata for this logical packet.
 LteV2xMetadata ::= SEQUENCE {
     -- LTE PC5 addressing and PPPP, when exposed.
-    pc5Addressing            LtePc5Addressing OPTIONAL,
+    pc5Addressing           LtePc5Addressing OPTIONAL,
     -- LTE PSCCH SCI1 observation summary.
-    pscch                    LteSci1Observation OPTIONAL,
+    pscch                   LteSci1Observation OPTIONAL,
     -- Compact MAC/RLC/PDCP/HARQ outcome summary.
-    lowerLayerSummary        LteLowerLayerSummary OPTIONAL,
+    lowerLayerSummary       LteLowerLayerSummary OPTIONAL,
     ...
 }
-
 END

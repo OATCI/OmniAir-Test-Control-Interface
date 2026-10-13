@@ -10,19 +10,19 @@ V2X-Capture-ARIB-T760
 { iso(1) identified-organization(3) v2xCapture(99999)
   aribT760(6) version1(1) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-
 IMPORTS
-    MeasurementValue
+    ValueSource
 FROM V2X-Capture-Common;
-
 -- The initial ARIB branch is deliberately compact. A future public
 -- ARIB profile may define more interoperable fields in this module.
 AribT760Metadata ::= SEQUENCE {
+    -- Values are normally direct observations from the ARIB radio.
+    -- Set dataSource if a tool derives or estimates these values.
+    dataSource             ValueSource OPTIONAL,
     -- Data rate in units of 500 kbit/s, when exposed.
-    dataRate500Kbps        MeasurementValue OPTIONAL,
+    dataRate500Kbps        INTEGER (0..65535) OPTIONAL,
     -- Reported transmit power in dBm times 10.
-    txPowerDbmX10          MeasurementValue OPTIONAL,
+    txPowerDbmX10          INTEGER (-32768..32767) OPTIONAL,
     ...
 }
-
 END
