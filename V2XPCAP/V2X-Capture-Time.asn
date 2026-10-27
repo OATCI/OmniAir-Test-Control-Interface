@@ -1,0 +1,37 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- EPB timestamps are authoritative. No duplicate packet timestamp is encoded.
+V2X-Capture-Time
+{ iso(1) identified-organization(3) v2xCapture(99999) time(3) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+IMPORTS ElapsedTimeUs FROM V2X-Capture-Common;
+
+-- A conformant Interface Context shall declare one interpretable epoch.
+TimeEpoch ::= ENUMERATED { utc, gps, tai, ... }
+TimeSyncSource ::= ENUMERATED {
+    gnss, gnss1pps, ntp, ptp, cellularNetwork, localOscillator, ...
+}
+TimeSyncState ::= ENUMERATED {
+    locked, synchronizing, holdover, degraded, freeRunning, ...
+}
+TimeUncertaintySemantics ::= ENUMERATED {
+    absoluteBound, standardDeviation, twoSigma, confidenceInterval, ...
+}
+ReceiveTimestampPoint ::= ENUMERATED {
+    radioReceive, modemDelivery, driverDelivery, captureAgentReceive, ...
+}
+TransmitTimestampPoint ::= ENUMERATED {
+    packetCreated, submittedToRadio, scheduled, otaStart, otaComplete, ...
+}
+
+-- Dynamic quality only; it is optional packet metadata, not an interface default.
+TimeQuality ::= SEQUENCE {
+    source TimeSyncSource OPTIONAL,
+    state TimeSyncState OPTIONAL,
+    uncertaintyNs INTEGER (0..1000000000) OPTIONAL,
+    uncertaintySemantics TimeUncertaintySemantics OPTIONAL,
+    sourceAgeUs ElapsedTimeUs OPTIONAL,
+    holdoverAgeUs ElapsedTimeUs OPTIONAL,
+    utcGpsOffsetSeconds INTEGER (-128..127) OPTIONAL,
+    ...
+}
+END

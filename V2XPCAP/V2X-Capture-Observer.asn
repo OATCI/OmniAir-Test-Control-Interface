@@ -1,0 +1,99 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- OmniTap observer, position, and radio observations.
+V2X-Capture-Observer { iso(1) identified-organization(3) v2xCapture(99999) observer(4) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+IMPORTS ElapsedTimeUs FROM V2X-Capture-Common;
+
+GeodeticDatum ::= ENUMERATED { wgs84, other,
+    ...
+}
+-- J2735-inspired terrestrial ranges/precision, without unavailable sentinels.
+GeodeticLocation ::= SEQUENCE {
+    datum GeodeticDatum OPTIONAL,
+    otherDatumId OCTET STRING (SIZE(1..64)) OPTIONAL,
+    latitudeE7 INTEGER (-900000000..900000000),
+    longitudeE7 INTEGER (-1800000000..1800000000),
+    altitudeDm INTEGER (-4096..61439) OPTIONAL,
+    ...
+}
+ObserverMotion ::= SEQUENCE {
+    speedCmPerSec INTEGER (0..16382) OPTIONAL,
+    -- Clockwise from true north; 36000 is not a valid heading.
+    headingDegX100 INTEGER (0..35999) OPTIONAL,
+    ...
+}
+ObserverLocation ::= SEQUENCE {
+    position GeodeticLocation,
+    -- Horizontal estimated position error in cm; 32767 means 32767 cm or more.
+    hepeCm INTEGER (0..32767) OPTIONAL,
+    ageUs ElapsedTimeUs OPTIONAL,
+    positioningMethod OCTET STRING (SIZE(1..32)) OPTIONAL,
+    motion ObserverMotion OPTIONAL,
+    ...
+}
+CaptureSource ::= ENUMERATED { overTheAir, modemExport, driverExport, replay, injected, derived,
+    ...
+}
+ObserverProvenance ::= SEQUENCE {
+    observerId OCTET STRING (SIZE(1..64)) OPTIONAL,
+    captureSource CaptureSource OPTIONAL,
+    platformId OCTET STRING (SIZE(1..64)) OPTIONAL,
+    hardwareVersion OCTET STRING (SIZE(1..64)) OPTIONAL,
+    softwareVersion OCTET STRING (SIZE(1..64)) OPTIONAL,
+    driverOrModemVersion OCTET STRING (SIZE(1..64)) OPTIONAL,
+    captureAgent OCTET STRING (SIZE(1..64)) OPTIONAL,
+    ...
+}
+ReceiverAntennaConfig ::= SEQUENCE {
+    antennaIndex INTEGER (0..255),
+    gainDbiX10 INTEGER (-300..300) OPTIONAL,
+    antennaModel OCTET STRING (SIZE(1..64)) OPTIONAL,
+    patternType OCTET STRING (SIZE(1..32)) OPTIONAL,
+    ...
+}
+AntennaSystemConfig ::= SEQUENCE (SIZE(1..32)) OF ReceiverAntennaConfig
+AntennaMeasurement ::= SEQUENCE {
+    antennaIndex INTEGER (0..255),
+    -- dBm x10; range covers useful real-world receive power.
+    rssiDbmX10 INTEGER (-2000..300),
+    rsrpDbmX10 INTEGER (-2000..300) OPTIONAL,
+    rsrqDbX10 INTEGER (-500..300) OPTIONAL,
+    sinrDbX10 INTEGER (-500..600) OPTIONAL,
+    ...
+}
+ChannelLoadKind ::= ENUMERATED { channelBusyRatio, channelBusyProbability, channelLoad,
+    ...
+}
+ChannelLoad ::= SEQUENCE {
+    kind ChannelLoadKind,
+    valuePercentX100 INTEGER (0..10000),
+    measurementWindowUs ElapsedTimeUs OPTIONAL,
+    method OCTET STRING (SIZE(1..32)) OPTIONAL,
+    ...
+}
+ReceiveRadioObservation ::= SEQUENCE {
+    antennaMeasurements SEQUENCE (SIZE(1..32)) OF AntennaMeasurement OPTIONAL,
+    -- Receiver-estimated one-way OTA propagation delay. 50035 ns is 15 km at c.
+    estimatedAirPropagationDelayNs INTEGER (0..50035) OPTIONAL,
+    channelLoad ChannelLoad OPTIONAL,
+    centerFrequencyKHz INTEGER (0..100000000) OPTIONAL,
+    bandwidthKHz INTEGER (1..100000) OPTIONAL,
+    ...
+}
+TransmitRadioObservation ::= SEQUENCE {
+    antennaIndex INTEGER (0..255) OPTIONAL,
+    transmitPowerDbmX10 INTEGER (-2000..300) OPTIONAL,
+    channelLoad ChannelLoad OPTIONAL,
+    centerFrequencyKHz INTEGER (0..100000000) OPTIONAL,
+    bandwidthKHz INTEGER (1..100000) OPTIONAL,
+    ...
+}
+ReceiveObservation ::= SEQUENCE { location ObserverLocation OPTIONAL,
+    radio ReceiveRadioObservation OPTIONAL,
+    ...
+}
+TransmitObservation ::= SEQUENCE { location ObserverLocation OPTIONAL,
+    radio TransmitRadioObservation OPTIONAL,
+    ...
+}
+END

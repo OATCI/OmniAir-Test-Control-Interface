@@ -1,0 +1,39 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- NR-V2X compact logical-packet summary.
+V2X-Capture-NR-V2X
+{ iso(1) identified-organization(3) v2xCapture(99999) nr(7) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+NrSchedulingMode ::= ENUMERATED { oneShot, semiPersistent, ... }
+
+NrPc5Addressing ::= SEQUENCE {
+    sourceLayer2Id OCTET STRING (SIZE(3)) OPTIONAL,
+    destinationLayer2Id OCTET STRING (SIZE(3)) OPTIONAL,
+    ...
+}
+
+NrLowerLayerSummary ::= SEQUENCE {
+    -- Each maximum count means that count or more.
+    transportBlockCount INTEGER (1..32) OPTIONAL,
+    rlcSegmentCount INTEGER (0..65535) OPTIONAL,
+    harqRetransmissionUsed BOOLEAN OPTIONAL,
+    harqTransmissionCount INTEGER (1..32) OPTIONAL,
+    harqEnabledForTx BOOLEAN OPTIONAL,
+    ...
+}
+
+NrV2xMetadata ::= SEQUENCE {
+    pc5Addressing NrPc5Addressing OPTIONAL,
+    schedulingMode NrSchedulingMode OPTIONAL,
+    resourceReservationIntervalMs INTEGER (0..1000) OPTIONAL,
+    lowerLayerSummary NrLowerLayerSummary OPTIONAL,
+    ...
+}
+
+NrRrcVersion ::= ENUMERATED { r15, r16, r17, r18, ... }
+NrRrcConfigurationSnapshot ::= SEQUENCE {
+    version NrRrcVersion,
+    -- <meaningful explanation>
+    ...
+}
+END

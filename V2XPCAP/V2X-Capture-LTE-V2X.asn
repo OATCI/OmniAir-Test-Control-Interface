@@ -1,0 +1,57 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- LTE-V2X logical-packet summary. No per-TB event list is required.
+V2X-Capture-LTE-V2X { iso(1) identified-organization(3) v2xCapture(99999) lte(6) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+SchedulingMode ::= ENUMERATED { oneShot, semiPersistent,
+    ...
+}
+LteSidelinkTiming ::= SEQUENCE { systemFrameNumber INTEGER (0..1023) OPTIONAL,
+    subframeNumber INTEGER (0..9) OPTIONAL,
+    ...
+}
+LtePc5Addressing ::= SEQUENCE {
+    sourceLayer2Id OCTET STRING (SIZE(3)) OPTIONAL,
+    destinationLayer2Id OCTET STRING (SIZE(2..3)) OPTIONAL,
+    pppp INTEGER (1..8) OPTIONAL,
+    ...
+}
+-- Selected received SCI Format 1 annotation. It is not a full SCI/TB history.
+LteSciFormat1 ::= SEQUENCE {
+    rawSciFormat1 OCTET STRING (SIZE(4)) OPTIONAL,
+    resourceReservationIntervalMs INTEGER (0..1000) OPTIONAL,
+    schedulingMode SchedulingMode OPTIONAL,
+    startSubchannelIndex INTEGER (0..255) OPTIONAL,
+    priority INTEGER (0..7) OPTIONAL,
+    frequencyResourceAssignment INTEGER (0..65535) OPTIONAL,
+    timeGap INTEGER (0..15) OPTIONAL,
+    mcs INTEGER (0..31) OPTIONAL,
+    retransmissionIndex INTEGER (0..3) OPTIONAL,
+    ...
+}
+LteLowerLayerSummary ::= SEQUENCE {
+    -- Count maxima mean that count or more.
+    transportBlockCount INTEGER (1..32) OPTIONAL,
+    rlcSegmentCount INTEGER (0..65535) OPTIONAL,
+    harqRetransmissionUsed BOOLEAN OPTIONAL,
+    harqTransmissionCount INTEGER (1..32) OPTIONAL,
+    harqEnabledForTx BOOLEAN OPTIONAL,
+    ...
+}
+LteV2xMetadata ::= SEQUENCE {
+    sidelinkTiming LteSidelinkTiming OPTIONAL,
+    pc5Addressing LtePc5Addressing OPTIONAL,
+    receivedSci1 LteSciFormat1 OPTIONAL,
+    txReservationMode SchedulingMode OPTIONAL,
+    txResourceReservationIntervalMs INTEGER (0..1000) OPTIONAL,
+    lowerLayerSummary LteLowerLayerSummary OPTIONAL,
+    ...
+}
+-- Opaque active configuration snapshot in Interface Context. OmniTap does not interpret octets.
+LteRrcVersion ::= ENUMERATED { r14, r15, r16, r17, r18, ... }
+LteRrcConfigurationSnapshot ::= SEQUENCE {
+    version LteRrcVersion,
+    -- <meaningful explanation>
+    ...
+}
+END

@@ -1,0 +1,88 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- Top-level objects carried in OmniTap PEN-owned pcapng Custom Blocks.
+V2X-Capture-Objects { iso(1) identified-organization(3) v2xCapture(99999) objects(10) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+IMPORTS
+    CaptureSessionId, RecordId, EpbOrdinal, PcapngInterfaceId, Direction, PayloadDescriptor
+FROM V2X-Capture-Common
+    PrivateExtensions
+FROM V2X-Capture-Extensions
+    TimeEpoch, ReceiveTimestampPoint, TransmitTimestampPoint, TimeQuality
+FROM V2X-Capture-Time
+    ObserverProvenance, AntennaSystemConfig, ReceiveObservation, TransmitObservation
+FROM V2X-Capture-Observer
+    AnalysisAnnotations
+FROM V2X-Capture-Analysis
+    LteV2xMetadata, LteRrcConfigurationSnapshot
+FROM V2X-Capture-LTE-V2X
+    NrV2xMetadata, NrRrcConfigurationSnapshot
+FROM V2X-Capture-NR-V2X
+    DsrcMetadata
+FROM V2X-Capture-DSRC
+    AribT760Metadata
+FROM V2X-Capture-ARIB-T760;
+
+ObjectSchemaVersion ::= INTEGER (1..15, ...)
+-- Section/test scope; emit near the start of the pcapng section.
+V2XCaptureContext ::= SEQUENCE {
+    schemaVersion ObjectSchemaVersion,
+    sessionId CaptureSessionId,
+    testCampaignDetails UTF8String (SIZE(1..255)) OPTIONAL,
+    testCaseId UTF8String (SIZE(1..64)) OPTIONAL,
+    scenarioName UTF8String (SIZE(1..255)) OPTIONAL,
+    extensions PrivateExtensions OPTIONAL,
+    ...
+}
+-- Interface scope. Standard IDB fields retain their normal pcapng semantics.
+V2XInterfaceContext ::= SEQUENCE {
+    schemaVersion ObjectSchemaVersion,
+    targetInterfaceId PcapngInterfaceId,
+    contextGeneration INTEGER (1..65535),
+    timeEpoch TimeEpoch,
+    receiveTimestampPoint ReceiveTimestampPoint OPTIONAL,
+    transmitTimestampPoint TransmitTimestampPoint OPTIONAL,
+    provenance ObserverProvenance OPTIONAL,
+    antennaSystem AntennaSystemConfig OPTIONAL,
+    defaultCenterFrequencyKHz INTEGER (0..100000000) OPTIONAL,
+    defaultBandwidthKHz INTEGER (1..100000) OPTIONAL,
+    lteRrcSnapshot LteRrcConfigurationSnapshot OPTIONAL,
+    nrRrcSnapshot NrRrcConfigurationSnapshot OPTIONAL,
+    extensions PrivateExtensions OPTIONAL,
+    ...
+}
+TechnologyMetadata ::= CHOICE {
+    dsrc DsrcMetadata,
+    aribT760 AribT760Metadata,
+    lteV2x LteV2xMetadata,
+    nrV2x NrV2xMetadata,
+    ...
+}
+-- This block shall immediately precede its target EPB.
+-- Its target ordinal is a required cross-check.
+V2XPacketMetadata ::= SEQUENCE {
+    schemaVersion ObjectSchemaVersion,
+    targetInterfaceId PcapngInterfaceId,
+    targetEpbOrdinal EpbOrdinal,
+    recordId RecordId,
+    direction Direction,
+    payload PayloadDescriptor OPTIONAL,
+    timeQuality TimeQuality OPTIONAL,
+    receiveObservation ReceiveObservation OPTIONAL,
+    transmitObservation TransmitObservation OPTIONAL,
+    technologyMetadata TechnologyMetadata OPTIONAL,
+    analysis AnalysisAnnotations OPTIONAL,
+    extensions PrivateExtensions OPTIONAL,
+    ...
+}
+-- Later supplemental results only. They shall not revise capture-time facts in V2XPacketMetadata.
+V2XSupplementalResult ::= SEQUENCE {
+    schemaVersion ObjectSchemaVersion,
+    sessionId CaptureSessionId,
+    targetInterfaceId PcapngInterfaceId,
+    targetEpbOrdinal EpbOrdinal,
+    recordId RecordId,
+    analysis AnalysisAnnotations OPTIONAL,
+    extensions PrivateExtensions OPTIONAL,
+    ...
+}
+END

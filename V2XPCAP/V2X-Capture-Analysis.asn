@@ -1,0 +1,41 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- Capture-side analysis. A missing optional category makes no assertion.
+V2X-Capture-Analysis { iso(1) identified-organization(3) v2xCapture(99999) analysis(5) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+ProcessingResult ::= ENUMERATED { passed, failed, inconclusive, unavailable,
+    ...
+}
+ProcessingStatus ::= SEQUENCE { result ProcessingResult,
+    ...
+}
+SecurityValidationAnnotation ::= SEQUENCE {
+    status ProcessingStatus,
+    failures BIT STRING (SIZE(0..64)) OPTIONAL,
+    ...
+}
+RelevanceAnnotation ::= SEQUENCE { status ProcessingStatus,
+    ...
+}
+ConsistencyAnnotation ::= SEQUENCE { status ProcessingStatus,
+    ...
+}
+MbdAnnotation ::= SEQUENCE { status ProcessingStatus,
+    ...
+}
+ApplicationCongestionAnnotation ::= SEQUENCE {
+    -- Present only for a transmitting SAE J3161/1 BSM sender when available.
+    j3161ChannelQualityIndicatorX10000 INTEGER (0..10000) OPTIONAL,
+    -- J3161/1-defined observation window applies. 65535 means 65535 or more.
+    j3161VehicleDensityInRange INTEGER (0..65535) OPTIONAL,
+    ...
+}
+AnalysisAnnotations ::= SEQUENCE {
+    securityValidation SecurityValidationAnnotation OPTIONAL,
+    relevance RelevanceAnnotation OPTIONAL,
+    consistency ConsistencyAnnotation OPTIONAL,
+    mbd MbdAnnotation OPTIONAL,
+    applicationCongestion ApplicationCongestionAnnotation OPTIONAL,
+    ...
+}
+END

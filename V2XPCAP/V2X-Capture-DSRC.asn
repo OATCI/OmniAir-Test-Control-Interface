@@ -1,0 +1,8 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- DSRC packet bytes remain Radiotap followed by native IEEE 802.11p/WAVE bytes.
+V2X-Capture-DSRC { iso(1) identified-organization(3) v2xCapture(99999) dsrc(8) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+DsrcMetadata ::= SEQUENCE { -- Do not duplicate Radiotap or native 802.11 fields.
+    ...
+}
+END

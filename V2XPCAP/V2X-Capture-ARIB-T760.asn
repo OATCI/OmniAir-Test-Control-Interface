@@ -1,0 +1,6 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- ARIB STD-T760 packet-specific summary; native bytes remain in the EPB.
+V2X-Capture-ARIB-T760 { iso(1) identified-organization(3) v2xCapture(99999) arib(9) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+AribT760Metadata ::= SEQUENCE { ... }
+END

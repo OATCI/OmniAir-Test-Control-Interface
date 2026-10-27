@@ -1,0 +1,45 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- OmniTap common identifiers and values. Structured objects use UPER.
+V2X-Capture-Common { iso(1) identified-organization(3) v2xCapture(99999) common(1) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+EXPORTS InterfaceId, V2XTechnology, CorrelationId, NonIpFamilyId, CaptureSessionId, RecordId, EpbOrdinal, PcapngInterfaceId, ElapsedTimeUs, Direction, PayloadKind, PayloadDescriptor;
+
+
+-- A section-scoped identifier for a capture/test session.
+CaptureSessionId ::= OCTET STRING (SIZE(16))
+-- Stable identifier used by packet metadata and supplemental results.
+RecordId ::= INTEGER (0..4294967295)
+-- One-based ordinal of an EPB among all EPBs in its pcapng section.
+EpbOrdinal ::= INTEGER (1..4294967295)
+-- pcapng Interface ID carried explicitly in OmniTap targeting objects.
+PcapngInterfaceId ::= INTEGER (0..4294967295)
+-- A bounded elapsed age. Zero means current at the EPB timestamp.
+ElapsedTimeUs ::= INTEGER (0..4294967295)
+
+Direction ::= ENUMERATED { rx, tx, observe,
+    ...
+}
+PayloadKind ::= ENUMERATED { ip, nonIp,
+    ...
+}
+
+-- Explicit family identification when payloadKind is nonIp.
+NonIpFamilyId ::= ENUMERATED {
+    reserved(0),
+    ieee1609(1),
+    iso29281(2),
+    etsiIts(3),
+    chinaDsmp(4),
+    ...
+}
+PayloadDescriptor ::= SEQUENCE {
+    kind PayloadKind,
+    nonIpFamilyId NonIpFamilyId OPTIONAL,
+    ...
+}
+
+CorrelationId ::= OCTET STRING (SIZE(1..32))
+InterfaceId ::= INTEGER (0..4294967295)
+V2XTechnology ::= ENUMERATED { lteV2x(0), nrV2x(1), dsrc(2), ... }
+END

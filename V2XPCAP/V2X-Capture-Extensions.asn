@@ -1,0 +1,29 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- Opaque optional extensions. Base-profile readers do not interpret values.
+V2X-Capture-Extensions { iso(1) identified-organization(3) v2xCapture(99999) extensions(2) v2(2) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+ExtensionVersion ::= INTEGER (1..15, ...)
+-- A regional extension applies to its enclosing OmniTap object as a whole.
+RegionalExtension ::= SEQUENCE {
+    regionalIdentifier OCTET STRING (SIZE(1..32)),
+    extensionType INTEGER (0..65535),
+    extensionVersion ExtensionVersion,
+    opaqueValue OCTET STRING (SIZE(1..2048)),
+    ...
+}
+-- A manufacturer extension applies to its enclosing OmniTap object as a whole.
+ManufacturerExtension ::= SEQUENCE {
+    ownerPen INTEGER (0..4294967295),
+    extensionType INTEGER (0..65535),
+    extensionVersion ExtensionVersion,
+    opaqueValue OCTET STRING (SIZE(1..2048)),
+    ...
+}
+-- At most two entries of each scope prevent unbounded per-object growth.
+PrivateExtensions ::= SEQUENCE {
+    regionalExtensions SEQUENCE (SIZE(1..2)) OF RegionalExtension OPTIONAL,
+    manufacturerExtensions SEQUENCE (SIZE(1..2)) OF ManufacturerExtension OPTIONAL,
+    ...
+}
+END

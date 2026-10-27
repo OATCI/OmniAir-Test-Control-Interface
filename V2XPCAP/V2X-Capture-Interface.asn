@@ -1,0 +1,54 @@
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+--
+-- V2X Capture Metadata Profile
+-- IDB-level V2X interface metadata.
+--
+-- This object belongs in a profile-defined Custom Binary Option on
+-- the
+-- pcapng Interface Description Block. It describes an interface whose
+-- associated EPBs use the standard EPB timestamp as capture time.
+--
+V2X-Capture-Interface
+{ iso(1) identified-organization(3) v2xCapture(99999)
+  interface(3) version1(1) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+IMPORTS
+    InterfaceId, V2XTechnology
+FROM V2X-Capture-Common
+    TimeEpoch, TimeQuality, ReceiveTimestampPoint,
+    TransmitTimestampPoint
+FROM V2X-Capture-Time;
+
+-- Describes the time interpretation for all EPBs of this IDB.
+InterfaceTimeContext ::= SEQUENCE {
+    -- Epoch used to interpret the standard pcapng EPB timestamp.
+    timeEpoch                TimeEpoch,
+    -- Profile requires pcapng if_tsresol to declare 1 us resolution.
+    -- This field records the profile requirement; it is not a second
+    -- timestamp-resolution encoding.
+    epbTimestampResolutionUs INTEGER (1..1),
+    -- Receive event represented by the EPB timestamp for Rx packets.
+    receiveTimestampPoint    ReceiveTimestampPoint OPTIONAL,
+    -- Transmit event represented by the EPB timestamp for Tx packets.
+    transmitTimestampPoint   TransmitTimestampPoint OPTIONAL,
+    -- Interface-level clock quality, updated when interface context
+    -- changes rather than copied into each packet record.
+    timeQuality              TimeQuality OPTIONAL,
+    ...
+}
+
+-- Stable interface context shared by all EPBs using this IDB.
+V2XInterfaceMetadata ::= SEQUENCE {
+    -- Schema version for this interface-level object.
+    profileVersion           INTEGER (1..255),
+    -- Producer's identifier for this capture interface.
+    interfaceId              InterfaceId OPTIONAL,
+    -- RAT normally represented by this IDB and its LinkType.
+    technology               V2XTechnology OPTIONAL,
+    -- Time context for the standard EPB timestamp on this IDB.
+    timeContext              InterfaceTimeContext,
+    ...
+}
+
+END
