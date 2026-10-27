@@ -1,106 +1,39 @@
---
--- V2X Capture Metadata Profile
--- NR-V2X summary, extensible beyond Release 16.
---
--- Stage-1 SCI is associated with PSCCH; stage-2 SCI is associated
--- with PSSCH. This profile uses summaries only and never requires raw
--- RLC/PDCP bytes, transport-block records, or HARQ-event lists.
---
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- NR-V2X compact logical-packet summary.
 V2X-Capture-NR-V2X
-{ iso(1) identified-organization(3) v2xCapture(99999)
-  nrV2x(8) version1(1) }
+{ iso(1) identified-organization(3) v2xCapture(99999) nr(7) v2(2) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-IMPORTS
-    ValueSource
-FROM V2X-Capture-Common;
--- PC5 Layer-2 identifiers are NR-specific. They are distinct from SCI
--- Layer-1 identifiers used for filtering or scheduling.
+
+NrSchedulingMode ::= ENUMERATED { oneShot, semiPersistent, ... }
+
 NrPc5Addressing ::= SEQUENCE {
-    -- Source PC5 Layer-2 identifier when exposed by NR sidelink.
-    sourceLayer2Id         OCTET STRING (SIZE(3)) OPTIONAL,
-    -- Destination PC5 Layer-2 identifier when exposed by NR sidelink.
-    destinationLayer2Id    OCTET STRING (SIZE(3)) OPTIONAL,
+    sourceLayer2Id OCTET STRING (SIZE(3)) OPTIONAL,
+    destinationLayer2Id OCTET STRING (SIZE(3)) OPTIONAL,
     ...
 }
--- NR PC5 QoS uses PC5 QoS flows. LTE PPPP is not an NR PC5 field.
-NrPc5QosObservation ::= SEQUENCE {
-    -- Values are normally observed from the NR PC5 QoS context.
-    -- Set dataSource only when a tool derives or estimates them.
-    dataSource             ValueSource OPTIONAL,
-    -- PC5 QoS identifier/codepoint, if exposed.
-    pqi                    INTEGER (0..65535) OPTIONAL,
-    -- PC5 QoS flow identifier, if exposed.
-    pqfi                   INTEGER (0..65535) OPTIONAL,
-    -- Priority level under source-documented scale and semantics.
-    priorityLevel          INTEGER (0..65535) OPTIONAL,
-    ...
-}
--- Capture-side stage-1 SCI observation summary.
-NrSciStage1Observation ::= SEQUENCE {
-    -- Decoded stage-1 SCI is normally observed from a radio export.
-    -- Set dataSource only when a tool derives or estimates it.
-    dataSource             ValueSource OPTIONAL,
-    -- Stage-1 SCI priority; separate from PC5 QoS priority.
-    priority               INTEGER (0..65535) OPTIONAL,
-    -- Stage-1 SCI frequency-resource codepoint.
-    frequencyResource      INTEGER (0..65535) OPTIONAL,
-    -- Stage-1 SCI time-resource codepoint.
-    timeResource           INTEGER (0..65535) OPTIONAL,
-    -- Stage-1 SCI modulation/coding codepoint.
-    mcs                    INTEGER (0..65535) OPTIONAL,
-    -- Stage-1 SCI reservation-period codepoint.
-    reservationPeriod      INTEGER (0..65535) OPTIONAL,
-    ...
-}
--- sourceLayer1Id and destinationLayer1Id are SCI Layer-1 values, not
--- the PC5 Layer-2 identifiers in NrPc5Addressing.
-NrSciStage2Observation ::= SEQUENCE {
-    -- Decoded stage-2 SCI is normally observed from a radio export.
-    -- Set dataSource only when a tool derives or estimates it.
-    dataSource             ValueSource OPTIONAL,
-    -- Stage-2 SCI HARQ process identifier/codepoint.
-    harqProcessId          INTEGER (0..65535) OPTIONAL,
-    -- Stage-2 SCI new-data-indicator codepoint.
-    ndi                    INTEGER (0..65535) OPTIONAL,
-    -- Stage-2 SCI redundancy-version codepoint.
-    rv                     INTEGER (0..65535) OPTIONAL,
-    -- SCI Layer-1 source identifier; not a PC5 Layer-2 ID.
-    sourceLayer1Id         INTEGER (0..16777215) OPTIONAL,
-    -- SCI Layer-1 destination identifier; not a PC5 Layer-2 ID.
-    destinationLayer1Id    INTEGER (0..16777215) OPTIONAL,
-    ...
-}
--- Logical-packet summary only, not a physical-event trace.
+
 NrLowerLayerSummary ::= SEQUENCE {
-    -- Summary is normally observed in a modem or driver export.
-    -- Set dataSource if a recorder computes it from other inputs.
-    dataSource             ValueSource OPTIONAL,
-    -- Whether HARQ was used for this logical packet.
-    harqUsed               BOOLEAN OPTIONAL,
-    -- Known HARQ transmissions, if the source supplies a count.
-    harqTransmissionCount  INTEGER (0..65535) OPTIONAL,
-    -- Known RLC segments summarized by this logical packet.
-    rlcSegmentCount         INTEGER (0..65535) OPTIONAL,
-    -- Reported RLC errors associated with this logical packet.
-    rlcErrorCount           INTEGER (0..65535) OPTIONAL,
-    -- Reported PDCP errors associated with this logical packet.
-    pdcpErrorCount          INTEGER (0..65535) OPTIONAL,
+    -- Each maximum count means that count or more.
+    transportBlockCount INTEGER (1..32) OPTIONAL,
+    rlcSegmentCount INTEGER (0..65535) OPTIONAL,
+    harqRetransmissionUsed BOOLEAN OPTIONAL,
+    harqTransmissionCount INTEGER (1..32) OPTIONAL,
+    harqEnabledForTx BOOLEAN OPTIONAL,
     ...
 }
--- NR-specific metadata for this logical packet.
+
 NrV2xMetadata ::= SEQUENCE {
-    -- Release indicator when the source exposes it.
-    releaseIndicator        INTEGER (15..255) OPTIONAL,
-    -- NR PC5 Layer-2 addressing.
-    pc5Addressing           NrPc5Addressing OPTIONAL,
-    -- Compact NR PC5 QoS observation.
-    pc5Qos                  NrPc5QosObservation OPTIONAL,
-    -- PSCCH stage-1 SCI observation.
-    firstStageSci           NrSciStage1Observation OPTIONAL,
-    -- PSSCH stage-2 SCI observation.
-    secondStageSci          NrSciStage2Observation OPTIONAL,
-    -- Compact MAC/RLC/PDCP/HARQ outcome summary.
-    lowerLayerSummary       NrLowerLayerSummary OPTIONAL,
+    pc5Addressing NrPc5Addressing OPTIONAL,
+    schedulingMode NrSchedulingMode OPTIONAL,
+    resourceReservationIntervalMs INTEGER (0..1000) OPTIONAL,
+    lowerLayerSummary NrLowerLayerSummary OPTIONAL,
+    ...
+}
+
+NrRrcVersion ::= ENUMERATED { r15, r16, r17, r18, ... }
+NrRrcConfigurationSnapshot ::= SEQUENCE {
+    version NrRrcVersion,
+    -- <meaningful explanation>
     ...
 }
 END

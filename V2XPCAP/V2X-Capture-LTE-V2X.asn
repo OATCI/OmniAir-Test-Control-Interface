@@ -1,78 +1,57 @@
---
--- V2X Capture Metadata Profile
--- LTE-V2X summary for one logical V2X packet.
---
--- IEEE 1609.3 LTE-V2X processing includes MAC, RLC, and PDCP, but
--- this profile does not reproduce their raw bytes. It carries compact
--- observations that a modem or driver is likely to expose.
---
-V2X-Capture-LTE-V2X
-{ iso(1) identified-organization(3) v2xCapture(99999)
-  lteV2x(7) version1(1) }
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- LTE-V2X logical-packet summary. No per-TB event list is required.
+V2X-Capture-LTE-V2X { iso(1) identified-organization(3) v2xCapture(99999) lte(6) v2(2) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-IMPORTS
-    ValueSource
-FROM V2X-Capture-Common;
--- LTE PC5 Layer-2 identifiers and PPPP are LTE-specific. They are not
--- common payload fields. Source L2 ID is 24 bits; destination ID may
--- be 16 or 24 bits according to the applicable LTE V2X context.
+
+SchedulingMode ::= ENUMERATED { oneShot, semiPersistent,
+    ...
+}
+LteSidelinkTiming ::= SEQUENCE { systemFrameNumber INTEGER (0..1023) OPTIONAL,
+    subframeNumber INTEGER (0..9) OPTIONAL,
+    ...
+}
 LtePc5Addressing ::= SEQUENCE {
-    -- Source PC5 Layer-2 identifier when exposed by LTE sidelink.
-    sourceLayer2Id         OCTET STRING (SIZE(3)) OPTIONAL,
-    -- Destination PC5 Layer-2 identifier in applicable LTE form.
-    destinationLayer2Id    OCTET STRING (SIZE(2..3)) OPTIONAL,
-    -- LTE PC5 PPPP service-priority value, not an SCI priority.
-    pppp                   INTEGER (1..8) OPTIONAL,
+    sourceLayer2Id OCTET STRING (SIZE(3)) OPTIONAL,
+    destinationLayer2Id OCTET STRING (SIZE(2..3)) OPTIONAL,
+    pppp INTEGER (1..8) OPTIONAL,
     ...
 }
--- SCI1 is LTE sidelink control on PSCCH. Values are capture-side
--- observations, not a reconstructed SCI bit field.
-LteSci1Observation ::= SEQUENCE {
-    -- Decoded SCI fields are normally observed from a radio export.
-    -- Set dataSource only when a tool derives or estimates them.
-    dataSource             ValueSource OPTIONAL,
-    -- SCI priority codepoint; separate from PC5 PPPP.
-    priority               INTEGER (0..65535) OPTIONAL,
-    -- SCI resource-reservation codepoint.
-    resourceReservation    INTEGER (0..65535) OPTIONAL,
-    -- SCI frequency-resource allocation codepoint.
-    frequencyResource      INTEGER (0..65535) OPTIONAL,
-    -- SCI time-resource or time-gap codepoint.
-    timeGap                INTEGER (0..65535) OPTIONAL,
-    -- SCI modulation and coding scheme codepoint.
-    mcs                    INTEGER (0..65535) OPTIONAL,
-    -- SCI retransmission-index codepoint.
-    retransmissionIndex    INTEGER (0..65535) OPTIONAL,
-    -- SCI transmission-format codepoint, if exposed.
-    transmissionFormat     INTEGER (0..65535) OPTIONAL,
+-- Selected received SCI Format 1 annotation. It is not a full SCI/TB history.
+LteSciFormat1 ::= SEQUENCE {
+    rawSciFormat1 OCTET STRING (SIZE(4)) OPTIONAL,
+    resourceReservationIntervalMs INTEGER (0..1000) OPTIONAL,
+    schedulingMode SchedulingMode OPTIONAL,
+    startSubchannelIndex INTEGER (0..255) OPTIONAL,
+    priority INTEGER (0..7) OPTIONAL,
+    frequencyResourceAssignment INTEGER (0..65535) OPTIONAL,
+    timeGap INTEGER (0..15) OPTIONAL,
+    mcs INTEGER (0..31) OPTIONAL,
+    retransmissionIndex INTEGER (0..3) OPTIONAL,
     ...
 }
--- Logical-packet summary only. Raw RLC/PDCP bytes, per-segment rows,
--- per-transport-block rows, or HARQ-event lists are outside the core.
 LteLowerLayerSummary ::= SEQUENCE {
-    -- Summary is normally observed in a modem or driver export.
-    -- Set dataSource if a recorder computes it from other inputs.
-    dataSource             ValueSource OPTIONAL,
-    -- Whether HARQ was used for this logical packet.
-    harqUsed               BOOLEAN OPTIONAL,
-    -- Known HARQ transmissions, if the source supplies a count.
-    harqTransmissionCount  INTEGER (0..65535) OPTIONAL,
-    -- Known RLC segments summarized by this logical packet.
-    rlcSegmentCount         INTEGER (0..65535) OPTIONAL,
-    -- Reported RLC errors associated with this logical packet.
-    rlcErrorCount           INTEGER (0..65535) OPTIONAL,
-    -- Reported PDCP errors associated with this logical packet.
-    pdcpErrorCount          INTEGER (0..65535) OPTIONAL,
+    -- Count maxima mean that count or more.
+    transportBlockCount INTEGER (1..32) OPTIONAL,
+    rlcSegmentCount INTEGER (0..65535) OPTIONAL,
+    harqRetransmissionUsed BOOLEAN OPTIONAL,
+    harqTransmissionCount INTEGER (1..32) OPTIONAL,
+    harqEnabledForTx BOOLEAN OPTIONAL,
     ...
 }
--- LTE-specific metadata for this logical packet.
 LteV2xMetadata ::= SEQUENCE {
-    -- LTE PC5 addressing and PPPP, when exposed.
-    pc5Addressing           LtePc5Addressing OPTIONAL,
-    -- LTE PSCCH SCI1 observation summary.
-    pscch                   LteSci1Observation OPTIONAL,
-    -- Compact MAC/RLC/PDCP/HARQ outcome summary.
-    lowerLayerSummary       LteLowerLayerSummary OPTIONAL,
+    sidelinkTiming LteSidelinkTiming OPTIONAL,
+    pc5Addressing LtePc5Addressing OPTIONAL,
+    receivedSci1 LteSciFormat1 OPTIONAL,
+    txReservationMode SchedulingMode OPTIONAL,
+    txResourceReservationIntervalMs INTEGER (0..1000) OPTIONAL,
+    lowerLayerSummary LteLowerLayerSummary OPTIONAL,
+    ...
+}
+-- Opaque active configuration snapshot in Interface Context. OmniTap does not interpret octets.
+LteRrcVersion ::= ENUMERATED { r14, r15, r16, r17, r18, ... }
+LteRrcConfigurationSnapshot ::= SEQUENCE {
+    version LteRrcVersion,
+    -- <meaningful explanation>
     ...
 }
 END

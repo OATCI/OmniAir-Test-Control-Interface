@@ -1,102 +1,45 @@
---
--- V2X Capture Metadata Profile
--- Common identifiers and packet classifications.
---
--- The profile uses existing pcapng blocks and options. It does not
--- change pcapng, a registered LinkType, or an on-air protocol.
---
--- UPER is the sole structured encoding for every profile-defined
--- ASN.1 object. Opaque third-party data is carried outside it
--- in its own pcapng Custom Binary Option.
---
-V2X-Capture-Common
-{ iso(1) identified-organization(3) v2xCapture(99999)
-  common(1) version1(1) }
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- OmniTap common identifiers and values. Structured objects use UPER.
+V2X-Capture-Common { iso(1) identified-organization(3) v2xCapture(99999) common(1) v2(2) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
--- This OID is a draft placeholder. Replace it before publication.
--- A record ID is unique within one capture session.
-RecordId ::= INTEGER (0..18446744073709551615)
--- A writer creates one collision-resistant value per capture session.
--- sessionId and recordId together are the primary correlation key.
+
+EXPORTS InterfaceId, V2XTechnology, CorrelationId, NonIpFamilyId, CaptureSessionId, RecordId, EpbOrdinal, PcapngInterfaceId, ElapsedTimeUs, Direction, PayloadKind, PayloadDescriptor;
+
+
+-- A section-scoped identifier for a capture/test session.
 CaptureSessionId ::= OCTET STRING (SIZE(16))
--- Identifies a receiver, transmitter, recorder, or capture appliance.
-ReceiverId ::= OCTET STRING (SIZE(1..64))
--- Identifies a capture interface within the producer's environment.
-InterfaceId ::= OCTET STRING (SIZE(1..64))
--- Provides supplemental correlation when a producer has one.
--- It is never a substitute for sessionId plus recordId.
-CorrelationId ::= OCTET STRING (SIZE(1..32))
--- A nonzero duration expressed in whole microseconds.
-DurationUs ::= INTEGER (1..4294967295)
--- RAT used for the logical packet represented by this record.
-V2XTechnology ::= ENUMERATED {
-    -- IEEE 802.11p / DSRC, normally using native Radiotap bytes.
-    ieee80211pDsrc(0),
-    -- Japan ARIB STD-T760 / ITS-Connect.
-    aribStdT760ItsConnect(1),
-    -- LTE sidelink V2X.
-    lteV2x(2),
-    -- NR sidelink V2X.
-    nrV2x(3),
-    -- A RAT not listed by this interoperable base profile.
-    other(254),
-    -- The producer cannot determine the RAT.
-    unknown(255)
-}
--- Direction of the logical packet at this capture observer.
-Direction ::= ENUMERATED {
-    -- Packet was received from air or a receive-side export.
-    receive(0),
-    -- Packet was transmitted, scheduled, or submitted by this node.
-    transmit(1),
-    -- Passive observation without an asserted Rx or Tx direction.
-    observe(2),
-    -- The producer cannot determine the direction.
-    unknown(255)
-}
--- Qualifies how a group of values was produced when that differs from
--- the documented default for the group. A missing field means that
--- the documented default applies; it never means that a value is
--- absent. Individual optional values are absent when not available.
-ValueSource ::= ENUMERATED {
-    -- Directly reported by the relevant sensor, radio, or software.
-    observed(0),
-    -- Deterministically calculated from reported or decoded values.
-    derived(1),
-    -- Inferred by a model or estimator and therefore uncertain.
-    estimated(2),
-    -- Producer cannot determine which source category applies.
-    unknown(255)
-}
--- General classification of the packet-data payload.
-PayloadKind ::= ENUMERATED {
-    -- Packet data is an IPv4 or IPv6 family payload.
-    ip(0),
-    -- Packet data is a named non-IP family.
-    nonIp(1),
-    -- Packet data is retained only as raw link-layer bytes.
-    rawLinkLayer(2),
-    -- The producer cannot classify the payload.
-    unknown(255)
-}
--- Identifies a non-IP payload family without inferring it from the
--- absence of an IP header.
-NonIpFamilyId ::= SEQUENCE {
-    -- Family value assigned by the stated namespace.
-    familyId           INTEGER (0..65535),
-    -- Registry or specification namespace for familyId.
-    namespace          OCTET STRING (SIZE(1..32)) OPTIONAL,
+-- Stable identifier used by packet metadata and supplemental results.
+RecordId ::= INTEGER (0..4294967295)
+-- One-based ordinal of an EPB among all EPBs in its pcapng section.
+EpbOrdinal ::= INTEGER (1..4294967295)
+-- pcapng Interface ID carried explicitly in OmniTap targeting objects.
+PcapngInterfaceId ::= INTEGER (0..4294967295)
+-- A bounded elapsed age. Zero means current at the EPB timestamp.
+ElapsedTimeUs ::= INTEGER (0..4294967295)
+
+Direction ::= ENUMERATED { rx, tx, observe,
     ...
 }
--- This is RAT-neutral payload classification only. PC5 Layer-2
--- identifiers and LTE PPPP remain in their RAT-specific modules.
+PayloadKind ::= ENUMERATED { ip, nonIp,
+    ...
+}
+
+-- Explicit family identification when payloadKind is nonIp.
+NonIpFamilyId ::= ENUMERATED {
+    reserved(0),
+    ieee1609(1),
+    iso29281(2),
+    etsiIts(3),
+    chinaDsmp(4),
+    ...
+}
 PayloadDescriptor ::= SEQUENCE {
-    -- Basic payload classification for the packet data.
-    payloadKind        PayloadKind,
-    -- Required for a classified non-IP family when known.
-    nonIpFamilyId      NonIpFamilyId OPTIONAL,
-    -- PSID when exposed by the applicable higher-layer protocol.
-    psid               INTEGER (0..4294967295) OPTIONAL,
+    kind PayloadKind,
+    nonIpFamilyId NonIpFamilyId OPTIONAL,
     ...
 }
+
+CorrelationId ::= OCTET STRING (SIZE(1..32))
+InterfaceId ::= INTEGER (0..4294967295)
+V2XTechnology ::= ENUMERATED { lteV2x(0), nrV2x(1), dsrc(2), ... }
 END

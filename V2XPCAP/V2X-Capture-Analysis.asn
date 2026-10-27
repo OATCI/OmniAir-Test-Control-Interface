@@ -1,171 +1,41 @@
---
--- V2X Capture Metadata Profile
--- Per-EPB verification, relevance, consistency, MBD, and application
--- annotations.
---
--- AnalysisAnnotations is embedded as an optional field in
--- V2XCaptureMetadata. It is not carried in a correlated analysis
--- block. A writer omits categories that were not run or are not
--- available, avoiding empty per-packet structures.
---
-V2X-Capture-Analysis
-{ iso(1) identified-organization(3) v2xCapture(99999)
-  analysis(10) version1(1) }
+-- OmniTap Packet Capture Architecture (Clean-Slate)
+-- Capture-side analysis. A missing optional category makes no assertion.
+V2X-Capture-Analysis { iso(1) identified-organization(3) v2xCapture(99999) analysis(5) v2(2) }
 DEFINITIONS AUTOMATIC TAGS ::= BEGIN
-IMPORTS
-    DurationUs
-FROM V2X-Capture-Common;
--- Outcome of one processing category.
-ProcessingResult ::= ENUMERATED {
-    -- No evaluation was requested or started.
-    notAttempted(0),
-    -- Evaluation completed without a detected failure in this
-    -- category.
-    passed(1),
-    -- Evaluation completed and found at least one failure.
-    failed(2),
-    -- Evaluation ran but no definitive conclusion was possible.
-    inconclusive(3),
-    -- Required inputs or capability were unavailable.
-    unavailable(4),
-    -- Category does not apply to the referenced packet.
-    notApplicable(5),
-    -- Producer cannot determine the processing result.
-    unknown(255)
-}
--- attempted and processed distinguish no request, incomplete work,
--- and a completed result. The result is always explicit.
-ProcessingStatus ::= SEQUENCE {
-    -- True when evaluation was requested or started.
-    attempted              BOOLEAN DEFAULT FALSE,
-    -- True when evaluation reached a result.
-    processed              BOOLEAN DEFAULT FALSE,
-    -- Explicit category outcome.
-    result                 ProcessingResult,
+
+ProcessingResult ::= ENUMERATED { passed, failed, inconclusive, unavailable,
     ...
 }
--- A set bit means the stated condition was observed. This bitmap
--- avoids a mandatory detector/check/message identifier dictionary.
-SecurityFailureBitmap ::= BIT STRING {
-    -- Secured packet or SPDU structure could not be parsed.
-    parseFailure(0),
-    -- A required critical information element was unsupported.
-    unsupportedCriticalInfo(1),
-    -- Signer certificate or signer identifier was not located.
-    signerNotFound(2),
-    -- Signer certificate validity interval had expired.
-    certificateExpired(3),
-    -- Signer certificate was not yet valid at checked time.
-    certificateNotYetValid(4),
-    -- Certificate was determined to be revoked.
-    certificateRevoked(5),
-    -- Certificate chain could not be built or validated.
-    chainBuildFailure(6),
-    -- Chain terminates at a root not trusted by this analyzer.
-    untrustedRoot(7),
-    -- Chain exceeded policy or implementation length limits.
-    chainTooLong(8),
-    -- Required revocation information was unavailable or overdue.
-    revocationInfoUnavailable(9),
-    -- Signature or other cryptographic verification failed.
-    signatureInvalid(10),
-    -- PSID, SSP, or certificate permission was unauthorized.
-    unauthorizedPsidOrSsp(11),
-    -- Header PSID and protected/application PSID disagree.
-    headerPsidMismatch(12),
-    -- Generation time failed the applicable validity rule.
-    generationTimeInvalid(13),
-    -- Expiration time failed the applicable validity rule.
-    expirationTimeInvalid(14),
-    -- Generation location failed the applicable validity rule.
-    generationLocationInvalid(15),
-    -- Packet was identified as duplicate or replayed.
-    duplicateOrReplay(16),
-    -- Certificate or message validity region did not apply.
-    validityRegionInvalid(17),
-    -- Signed external-data hash did not match supplied data.
-    externalHashMismatch(18),
-    -- Certificate fields or permissions were internally inconsistent.
-    certificateConsistencyFailure(19),
-    -- Signed-data fields were internally inconsistent.
-    signedDataConsistencyFailure(20)
-} (SIZE(0..256))
--- Cryptographic and credential-processing result only. Relevance and
--- consistency remain separate to improve diagnostics.
+ProcessingStatus ::= SEQUENCE { result ProcessingResult,
+    ...
+}
 SecurityValidationAnnotation ::= SEQUENCE {
-    -- Processing state and final result.
-    status                 ProcessingStatus,
-    -- Compact common failure causes when result is failed.
-    failures               SecurityFailureBitmap OPTIONAL,
+    status ProcessingStatus,
+    failures BIT STRING (SIZE(0..64)) OPTIONAL,
     ...
 }
--- Receiver/context-dependent applicability result.
--- Examples include stale/future data, replay, and geographic
--- mismatch.
-RelevanceAnnotation ::= SEQUENCE {
-    -- Processing state and final result.
-    status                 ProcessingStatus,
+RelevanceAnnotation ::= SEQUENCE { status ProcessingStatus,
     ...
 }
--- Internal agreement result, separate from cryptographic validation.
--- Examples include SPDU, certificate, PSID, and profile
--- relationships.
-ConsistencyAnnotation ::= SEQUENCE {
-    -- Processing state and final result.
-    status                 ProcessingStatus,
+ConsistencyAnnotation ::= SEQUENCE { status ProcessingStatus,
     ...
 }
--- Misbehavior-detection result. The core has no mandatory
--- detector ID.
-MbdAnnotation ::= SEQUENCE {
-    -- Processing state and final result.
-    status                 ProcessingStatus,
+MbdAnnotation ::= SEQUENCE { status ProcessingStatus,
     ...
 }
--- J3161/1 congestion-control values. These are application-side
--- calculations, not PHY CQI or a generic NR/LTE CQI report.
-UniqueRemoteVehicleObservation ::= SEQUENCE {
-    -- Number of distinct remote vehicles observed in the stated
-    -- window.
-    count                  INTEGER (0..65535),
-    -- Look-back window used to count distinct remote vehicles.
-    observationWindowUs    DurationUs,
-    ...
-}
--- Optional congestion-control annotation for the referenced packet.
 ApplicationCongestionAnnotation ::= SEQUENCE {
-    -- J3161/1 Channel Quality Indicator, scaled by 10^4.
-    -- For example, 3000 represents an indicator of 0.3000.
-    j3161ChannelQualityIndicatorX10000
-                           INTEGER (0..10000) OPTIONAL,
-    -- J3161/1 vehicle density in range: count of unique remote
-    -- vehicles whose relevant 2D positions are within 100 m radius.
-    j3161VehicleDensityInRange
-                           INTEGER (0..65535) OPTIONAL,
-    -- All distinct remote vehicles seen during a declared look-back
-    -- window; this may use a broader scope than the 100 m density.
-    uniqueRemoteVehicles   UniqueRemoteVehicleObservation OPTIONAL,
+    -- Present only for a transmitting SAE J3161/1 BSM sender when available.
+    j3161ChannelQualityIndicatorX10000 INTEGER (0..10000) OPTIONAL,
+    -- J3161/1-defined observation window applies. 65535 means 65535 or more.
+    j3161VehicleDensityInRange INTEGER (0..65535) OPTIONAL,
     ...
 }
--- Optional application annotations for the current EPB.
-ApplicationAnnotation ::= SEQUENCE {
-    -- Congestion-control values available to the application.
-    congestion             ApplicationCongestionAnnotation OPTIONAL,
-    ...
-}
--- Independent categories may be absent when a producer did not run
--- them. This object is included directly in the EPB metadata option.
 AnalysisAnnotations ::= SEQUENCE {
-    -- Cryptographic and credential-validation outcome.
-    securityValidation     SecurityValidationAnnotation OPTIONAL,
-    -- Receiver-context applicability outcome.
-    relevance              RelevanceAnnotation OPTIONAL,
-    -- Internal field/profile agreement outcome.
-    consistency            ConsistencyAnnotation OPTIONAL,
-    -- Misbehavior-detection outcome.
-    mbd                    MbdAnnotation OPTIONAL,
-    -- Optional application/congestion annotation.
-    application            ApplicationAnnotation OPTIONAL,
+    securityValidation SecurityValidationAnnotation OPTIONAL,
+    relevance RelevanceAnnotation OPTIONAL,
+    consistency ConsistencyAnnotation OPTIONAL,
+    mbd MbdAnnotation OPTIONAL,
+    applicationCongestion ApplicationCongestionAnnotation OPTIONAL,
     ...
 }
 END
