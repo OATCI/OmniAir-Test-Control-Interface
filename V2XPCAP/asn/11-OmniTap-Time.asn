@@ -1,0 +1,112 @@
+-- OmniTap time-quality types.
+-- Normative: Every EPB timestamp SHALL be POSIX UTC at millisecond, microsecond, or nanosecond resolution (IDB
+-- if_tsresol = 3, 6, or 9; readers SHALL treat an IDB without if_tsresol as 6, the pcapng microsecond default).
+-- OmniTap SHALL NOT signal another EPB time epoch. Protocol payloads using another epoch, such as IEEE 1609.2 TAI,
+-- retain their own protocol-defined meaning and are decoded by their protocol dissector.
+--
+-- Clock startup, holdover, and step transitions: A station starting on a real-time clock (RTC) before acquiring
+-- external synchronization MAY report state = holdover (with its prior discipline source and holdoverAgeUs when
+-- known) or source = localOscillator with state = freeRunning. When the station transitions to a new clock source,
+-- changes synchronization state, or steps the clock to authoritative POSIX UTC, the producer SHALL emit a new
+-- OmniTapInterfaceContext with an incremented contextGeneration and updated timeContext.
+OmniTap-Time { 1 3 6 1 4 1 32473 omniTap(1) time(11) major-version-1(1) minor-version-0(0) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+EXPORTS ALL;
+IMPORTS
+
+   ElapsedTimeUs
+      FROM OmniTap-Common
+;
+
+TimeQuality ::= SEQUENCE {
+
+
+   -- Source currently disciplining or otherwise informing the timestamping clock.
+   --
+   source                TimeSyncSource            OPTIONAL,
+
+
+   -- Synchronization state applicable at the associated EPB timestamp.
+   --
+   state                 TimeSyncState             OPTIONAL,
+
+
+   -- Estimated one-sigma absolute error of the EPB timestamp, in nanoseconds.
+   --
+   uncertaintyNs         INTEGER (0..1000000000)   OPTIONAL,
+
+
+   -- Age of the most recent usable input from source at the associated EPB timestamp.
+   --
+   sourceAgeUs           ElapsedTimeUs             OPTIONAL,
+
+
+   -- Duration since authoritative time synchronization was lost, in microseconds.
+   --
+   holdoverAgeUs         ElapsedTimeUs             OPTIONAL,
+
+
+   -- UTC minus GPS in whole seconds at capture time; normally -18 while GPS leads UTC.
+   --
+   utcGpsOffsetSeconds   INTEGER (-128..127)       OPTIONAL,
+
+   ...
+}
+
+TimeSyncSource ::= ENUMERATED {
+   gnss                     (0),   -- Complete GNSS timing solution, with or without an electrical 1PPS output.
+
+   ntp                      (1),   -- Network Time Protocol synchronization over IP.
+
+   ptp                      (2),   -- IEEE 1588 Precision Time Protocol synchronization.
+
+   cellularNetwork          (3),   -- Time derived from cellular-network signaling or a cellular modem time service.
+
+   localOscillator          (4),   -- Free-running local hardware oscillator without an authoritative external source.
+
+   externalGnssSerialOnly   (5),   -- External GNSS time received via serial data without a hardware timing pulse.
+
+   ...
+}
+
+TimeSyncState ::= ENUMERATED {
+   locked          (0),   -- Clock is disciplined by an authoritative source within claimed uncertainty.
+
+   synchronizing   (1),   -- Clock is acquiring or converging to an authoritative source.
+
+   holdover        (2),   -- Authoritative source was lost; clock relies on its last disciplined state.
+
+   degraded        (3),   -- Source exists but quality does not meet the producer's normal criterion.
+
+   freeRunning     (4),   -- Clock is not currently disciplined by an authoritative source.
+
+   ...
+}
+
+ReceiveTimestampPoint ::= ENUMERATED {
+   radioReceive          (0),   -- Timestamp is referenced to radio reception of the physical frame.
+
+   modemDelivery         (1),   -- Timestamp is referenced to modem delivery to the host interface.
+
+   driverDelivery        (2),   -- Timestamp is referenced to network-driver delivery.
+
+   captureAgentReceive   (3),   -- Timestamp is referenced to capture-agent receipt.
+
+   ...
+}
+
+TransmitTimestampPoint ::= ENUMERATED {
+   packetCreated      (0),   -- Timestamp is referenced to producer creation of the packet.
+
+   submittedToRadio   (1),   -- Timestamp is referenced to submission to the radio subsystem.
+
+   scheduled          (2),   -- Timestamp is referenced to radio scheduling.
+
+   otaStart           (3),   -- Timestamp is referenced to start of over-the-air transmission.
+
+   otaComplete        (4),   -- Timestamp is referenced to completion of over-the-air transmission.
+
+   ...
+}
+
+END

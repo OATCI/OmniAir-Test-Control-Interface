@@ -1,0 +1,145 @@
+-- OmniTap per-packet metadata.
+-- Normative: In standard OmniTap (Native) streams, this object is carried inside the EPB it describes as a copyable
+-- Custom Binary Option (option code 2989 / 0x0BAD). In OmniTap-Lua compatibility streams (for older or unmodified
+-- Wireshark/TShark installations running only the Lua dissector without the compiled asn2wrs C dissector), it is
+-- carried in a standalone copyable OmniTap Custom Block (0x00000BAD). Both stream flavors carry the exact same
+-- COER(OmniTapObject) bytes and are losslessly convertible with scripts/OmniLuazer.py.
+-- Normative: The EPB it describes SHALL carry the standard epb_packetid option (Wireshark frame.packet_id) equal to
+-- (sessionTag * 2^32) + recordId, where sessionTag is the SessionTag of the capture session.
+-- Normative: Readers SHALL associate this object with the EPB whose epb_packetid equals (sessionTag * 2^32) + recordId,
+-- using the sessionTag and recordId carried in this object. In OmniTap-Lua streams, association SHALL NOT use block
+-- order, EPB ordinal, or Wireshark frame number. If no EPB matches, readers SHALL report this object as unassociated and
+-- SHALL NOT guess.
+-- Normative: Duplicates. mergecap and editcap can leave two copies of the same object, or two EPBs with the same
+-- epb_packetid, in one file; in OmniTap-Lua streams, editcap -d removes duplicate EPBs but not duplicate Custom Blocks.
+-- If several objects of this kind name the same (sessionTag, recordId) and their COER payloads are byte-for-byte
+-- identical, readers SHALL treat them as one object. If the payloads differ, readers SHALL NOT choose between them and
+-- SHALL report the packet as having conflicting metadata. The same applies to several EPBs with one epb_packetid: if
+-- their packet data and timestamps are identical they are one packet; otherwise the packet identifier is ambiguous and
+-- readers SHALL report this object as unassociated.
+-- Normative: In OmniTap-Lua streams, producers SHOULD write this block immediately before the EPB it describes.
+-- Adjacency is a convenience for simple readers, not an association key. A chronological mergecap merge separates most
+-- Custom Blocks from their EPBs, whereas in OmniTap (Native) streams the option travels inside the EPB.
+-- Normative: Every OmniTap object identifies its own packet or session, so it can be selected, filtered, and exported.
+-- A reference dissector SHALL publish the packet identifier of each object as a display-filter field; see
+-- 00-OmniTap-Requirements.md.
+-- Normative: Facts already carried by standard pcapng fields are not repeated in OmniTap: packet direction and
+-- link-layer error flags (epb_flags; Wireshark frame.packet_flags_*), capture interface (EPB Interface ID;
+-- frame.interface_id), and packet timestamp (EPB timestamp; frame.time).
+-- Normative: A packet identifier names one captured observation of a packet in one capture session. When independent
+-- devices capture the same on-air packet, each device has its own capture session, so the observations carry different
+-- packet identifiers although their packet bytes are identical. Readers SHALL NOT compare or merge metadata across
+-- sessions.
+-- Normative: The technologyMetadata alternative SHALL name the same RAT as the technology of the Interface Context of the
+-- packet's interface, if there is one. A reader that finds a mismatch SHALL treat this object as authoritative for the
+-- packet and SHOULD report the mismatch.
+-- Rationale: The IETF OPSAWG pcapng specification describes a Custom Option (section 3.5.1) as the place for custom data
+-- related to a block, and a Custom Block (section 4.8) as a container for custom data that is not part of another block.
+-- OmniTap (Native) follows that guidance directly by placing Packet Metadata in EPB Custom Binary Option 2989, which
+-- keeps packet and metadata atomically bound through editcap, mergecap, deduplication, and GUI packet exports. Because
+-- stock Wireshark's Lua API exposes standalone Custom Blocks but not EPB Custom Binary Options, OmniTap-Lua places the
+-- same COER(OmniTapObject) payload in a standalone Custom Block (0x00000BAD), and scripts/OmniLuazer.py converts
+-- losslessly between the two flavors; see 00-OmniTap-Architecture.md.
+OmniTap-Packet-Metadata { 1 3 6 1 4 1 32473 omniTap(1) packetMetadata(20) major-version-1(1) minor-version-0(0) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+EXPORTS ALL;
+IMPORTS
+
+   RecordId,
+   SessionTag,
+   PayloadDescriptor
+      FROM OmniTap-Common
+
+   TimeQuality
+      FROM OmniTap-Time
+
+   ObserverLocation,
+   RadioObservation
+      FROM OmniTap-Observer
+
+   LteV2xMetadata
+      FROM OmniTap-RAT-LTE-V2X
+
+   NrV2xMetadata
+      FROM OmniTap-RAT-NR-V2X
+
+   EtsiItsG5Metadata
+      FROM OmniTap-RAT-ETSI-ITSG5
+
+   AribT109Metadata
+      FROM OmniTap-RAT-ARIB-T109
+
+   AnalysisAnnotations
+      FROM OmniTap-Supplemental-Result
+
+   OptionalExtensions
+      FROM OmniTap-Extensions
+;
+
+OmniTapPacketMetadata ::= SEQUENCE {
+
+   -- Normative: Per-session logical-packet counter. SHALL equal the low 32 bits of the associated EPB's
+   -- epb_packetid. Unique within the capture session, including across all ring-buffer files of that session;
+   -- producers SHALL NOT restart it when a new ring-buffer file begins. Supplemental Results reference the packet
+   -- by (sessionId, recordId).
+   --
+   recordId             RecordId,
+
+
+   -- Normative: SHALL equal the high 32 bits of the associated EPB's epb_packetid. With recordId it forms the packet
+   -- identifier, so the object names its packet whether it is carried inside the EPB as Custom Binary Option 2989
+   -- (OmniTap Native) or in a standalone Custom Block (OmniTap-Lua).
+   -- Rationale: In OmniTap-Lua streams, a tool that merges or filters files can separate the Custom Block from its
+   -- EPB, and files from different sessions can contain the same recordId. Carrying sessionTag inside Packet Metadata
+   -- keeps the COER(OmniTapObject) payload identical across OmniTap (Native) and OmniTap-Lua. This costs 32 bits per
+   -- packet.
+   --
+   sessionTag           SessionTag,
+
+
+   payload              PayloadDescriptor     OPTIONAL,   -- Native EPB packet-payload classification; absence makes no assertion.
+
+   -- Dynamic timestamping-clock quality applicable at the associated EPB timestamp.
+   --
+   timeQuality          TimeQuality           OPTIONAL,
+
+
+   -- Location of the capture platform at the associated EPB timestamp, for either packet direction.
+   --
+   observerLocation     ObserverLocation      OPTIONAL,
+
+
+   -- Radio measurements and configuration for the associated packet; each field says which direction it
+   -- applies to. Direction itself comes only from the EPB's epb_flags.
+   --
+   radio                RadioObservation      OPTIONAL,
+
+
+   technologyMetadata   TechnologyMetadata    OPTIONAL,   -- RAT-specific metadata for the associated packet.
+
+
+   -- Analysis known at the moment this metadata was written. Analysis that becomes available later belongs in a
+   -- Supplemental Result, not here.
+   --
+   analysis             AnalysisAnnotations   OPTIONAL,
+
+
+   optionalExtensions   OptionalExtensions    OPTIONAL,   -- Optional regional or third-party metadata for the packet.
+
+   ...
+}
+
+TechnologyMetadata ::= CHOICE {
+   lteV2x      LteV2xMetadata,      -- LTE-V2X-specific metadata.
+
+   nrV2x       NrV2xMetadata,       -- NR-V2X-specific metadata.
+
+   etsiItsG5   EtsiItsG5Metadata,   -- ETSI ITS-G5 metadata; Radiotap remains authoritative for 802.11 PHY/radio.
+
+   aribT109    AribT109Metadata,    -- ITS Connect (ARIB STD-T109) metadata.
+
+   ...
+}
+
+END
+

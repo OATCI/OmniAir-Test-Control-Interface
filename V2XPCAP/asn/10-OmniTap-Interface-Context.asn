@@ -1,0 +1,165 @@
+-- OmniTap interface context.
+--
+-- Interface Context applies to packets of one pcapng interface that belong to one capture session. A reader SHALL
+-- associate it with an EPB when the session tag in the high 32 bits of the EPB's epb_packetid equals sessionTag and the
+-- if_name option of the IDB that the EPB references equals interfaceName. Readers SHALL decide this for each EPB. They
+-- SHALL NOT decide it once for a whole IDB and SHALL NOT use block order.
+--
+-- An IDB carries no session identifier, and tools may place packets from several sessions on one IDB. Default mergecap
+-- behavior does this when two files use the same interface name. Deciding for each EPB keeps every packet associated
+-- with the context of its own session.
+--
+-- Producers SHALL write epb_packetid on every EPB of an interface that has Interface Context. An EPB with no
+-- epb_packetid, or whose IDB has no if_name, has no associated Interface Context. Readers SHALL NOT guess. Producers
+-- SHALL write if_name on every IDB of an interface that has Interface Context. Within one capture session, each IDB
+-- SHOULD have a distinct if_name.
+--
+-- A replacement context for the same sessionTag and interfaceName uses a higher contextGeneration. It applies to EPBs
+-- of that interface and session that follow it in the file as written by the producer. Readers that cannot establish
+-- that order, for example after a merge, SHALL use the highest contextGeneration available for that pair.
+--
+-- A producer SHALL write the Capture Context and the current Interface Context of every interface in every file it
+-- writes, including the first file and any file started later, before any EPB of that interface. The repeated Interface
+-- Context carries the contextGeneration then in force. Readers SHALL treat an exact repeat of an earlier context in the
+-- same file set as the same context, not as a conflict. A file with no Interface Context for an EPB's session tag and
+-- if_name makes no assertion about that interface.
+--
+-- EPB timestamps SHALL be POSIX UTC at millisecond, microsecond, or nanosecond resolution (IDB if_tsresol = 3, 6, or
+-- 9; readers SHALL treat an IDB without if_tsresol as 6, the pcapng microsecond default).
+--
+OmniTap-Interface-Context { 1 3 6 1 4 1 32473 omniTap(1) interfaceContext(10) major-version-1(1) minor-version-0(0) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+EXPORTS ALL;
+
+IMPORTS
+
+   PcapngInterfaceName,
+   SessionTag,
+   V2XTechnology
+      FROM OmniTap-Common
+
+   ReceiveTimestampPoint,
+   TimeQuality,
+   TransmitTimestampPoint
+      FROM OmniTap-Time
+
+   AntennaSystemConfig,
+   ObserverProvenance
+      FROM OmniTap-Observer
+
+   LteRrcConfigurationSnapshot
+      FROM OmniTap-RAT-LTE-V2X
+
+   NrRrcConfigurationSnapshot
+      FROM OmniTap-RAT-NR-V2X
+
+   OptionalExtensions
+      FROM OmniTap-Extensions
+;
+
+
+-- =============================================================================
+-- Interface-context definitions.
+-- =============================================================================
+
+-- Describes stable facts and configuration for one interface in one capture session.
+--
+OmniTapInterfaceContext ::= SEQUENCE {
+
+
+   -- Identifies the capture session to which this context applies.
+   -- This field is one part of the association key; interfaceName is the other part.
+   --
+   sessionTag                 SessionTag,                              -- The capture-session tag.
+
+
+   -- Identifies the if_name of the IDB referenced by EPBs to which this context applies.
+   -- This field is one part of the association key; sessionTag is the other part.
+   --
+   interfaceName              PcapngInterfaceName,                     -- The associated IDB's if_name.
+
+   contextGeneration          INTEGER (1..65535),                      -- The replacement generation.
+
+
+   -- Identifies the RAT normally carried by this pcapng interface. Packet Metadata technologyMetadata SHALL name the
+   -- same RAT. On a mismatch, Packet Metadata governs that packet and the reader reports the mismatch.
+   -- Absence means that no interface-level RAT is asserted.
+   --
+   technology                 V2XTechnology                  OPTIONAL, -- The RAT normally carried by the interface.
+
+   timeContext                InterfaceTimeContext,                    -- Timestamp semantics and baseline quality.
+
+
+   -- Identifies the capture-platform provenance for this interface.
+   -- Absence means that no interface-level provenance is asserted.
+   --
+   provenance                 ObserverProvenance             OPTIONAL, -- The capture-platform provenance.
+
+
+   -- Describes the installed receiver-antenna configuration.
+   -- Absence means that no antenna-system configuration is asserted.
+   --
+   antennaSystem              AntennaSystemConfig            OPTIONAL, -- The installed antenna configuration.
+
+
+   -- Supplies the default RF center frequency when Packet Metadata omits it.
+   -- Unit: kilohertz.
+   -- Absence means that no default center frequency is asserted.
+   --
+   defaultCenterFrequencyKHz  INTEGER (0..100000000)          OPTIONAL, -- The default RF center frequency.
+
+
+   -- Supplies the default bandwidth when Packet Metadata omits it.
+   -- Unit: kilohertz.
+   -- Absence means that no default bandwidth is asserted.
+   --
+   defaultBandwidthKHz        INTEGER (1..100000)             OPTIONAL, -- The default bandwidth.
+
+
+   -- Provides the LTE RRC configuration baseline applicable to this interface.
+   -- Absence means that no LTE RRC configuration baseline is asserted.
+   --
+   lteRrcSnapshot             LteRrcConfigurationSnapshot    OPTIONAL, -- The LTE RRC configuration baseline.
+
+
+   -- Provides the NR RRC configuration baseline applicable to this interface.
+   -- Absence means that no NR RRC configuration baseline is asserted.
+   --
+   nrRrcSnapshot              NrRrcConfigurationSnapshot     OPTIONAL, -- The NR RRC configuration baseline.
+
+
+   -- Provides regional or third-party information for this interface.
+   -- Absence means that no extension information is provided for the interface.
+   --
+   optionalExtensions         OptionalExtensions             OPTIONAL, -- Regional or third-party context.
+
+   ...
+}
+
+-- Describes the timestamp reference points and baseline clock quality for an interface.
+--
+InterfaceTimeContext ::= SEQUENCE {
+
+
+   -- Identifies the physical or software event represented by EPB timestamps for received packets.
+   -- Absence means that no receive timestamp point is asserted.
+   --
+   receiveTimestampPoint   ReceiveTimestampPoint        OPTIONAL, -- The receive timestamp reference point.
+
+
+   -- Identifies the physical or software event represented by EPB timestamps for transmitted packets.
+   -- Absence means that no transmit timestamp point is asserted.
+   --
+   transmitTimestampPoint  TransmitTimestampPoint       OPTIONAL, -- The transmit timestamp reference point.
+
+
+   -- Describes baseline clock quality. A producer sends a replacement context when this baseline changes materially.
+   -- Absence means that no baseline clock quality is asserted.
+   --
+   timeQuality             TimeQuality                  OPTIONAL, -- The baseline clock quality.
+
+   ...
+}
+
+END

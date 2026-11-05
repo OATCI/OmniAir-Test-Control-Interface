@@ -1,0 +1,259 @@
+-- OmniTap observer location, provenance, and radio observations.
+-- Normative: An absent OPTIONAL value makes no assertion; it does not mean zero, false,
+-- unavailable, unsupported, or any other implied value.
+-- Normative: Packet direction is not repeated here. It comes only from the epb_flags option of the associated EPB
+-- (Wireshark frame.packet_flags_direction). Each direction-specific field below says which direction it describes.
+-- Normative: For ETSI ITS-G5 packets, Radiotap is authoritative for the channel: its frequency field and its half-rate
+-- (10 MHz) or quarter-rate (5 MHz) channel flags. A producer SHALL NOT write a centerFrequencyKHz or bandwidthKHz that
+-- contradicts them and SHOULD omit both. A reader SHALL show the Radiotap value and SHOULD report a disagreement.
+OmniTap-Observer { 1 3 6 1 4 1 32473 omniTap(1) observer(12) major-version-1(1) minor-version-0(0) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+EXPORTS ALL;
+IMPORTS
+
+   ElapsedTimeUs
+      FROM OmniTap-Common
+;
+
+
+-- =============================================================================
+-- Observer-location definitions.
+-- =============================================================================
+
+
+-- Normative: The observer is the capture platform. One location describes it at the associated EPB timestamp, whether the
+-- packet was received or transmitted; it is not repeated per direction.
+ObserverLocation ::= SEQUENCE {
+   position            GeographicPosition,                      -- Observer location at the associated EPB timestamp.
+
+   -- Horizontal estimated position error in centimeters; confidence is producer defined.
+   --
+   hepeCm              INTEGER (0..32767)           OPTIONAL,
+
+
+   -- Age of position relative to the associated EPB timestamp, in microseconds.
+   --
+   ageUs               ElapsedTimeUs                OPTIONAL,
+
+
+   -- Producer-defined identifier of the positioning method or fusion solution.
+   --
+   positioningMethod   OCTET STRING (SIZE(1..32))   OPTIONAL,
+
+   motion              ObserverMotion               OPTIONAL,   -- Observer motion at the location measurement time.
+
+   ...
+}
+
+
+-- Describes a geographic position in an explicitly identified coordinate reference system.
+--
+GeographicPosition ::= SEQUENCE {
+
+   -- System in which latitude, longitude, and altitude are expressed.
+   --
+   coordinateReferenceSystem   CoordinateReferenceSystem           OPTIONAL,
+
+
+   -- Identifier of the system when coordinateReferenceSystem is other.
+   --
+   otherCoordinateSystemId     OCTET STRING (SIZE(1..64))          OPTIONAL,
+
+   -- Latitude in degrees multiplied by 10^7; -90 and +90 are the two poles.
+   --
+   latitudeE7                  INTEGER (-900000000..900000000),
+
+   -- Longitude in degrees multiplied by 10^7. The range is that of IEEE 1609.2 OneEightyDegreeInt: it includes +180
+   -- and excludes -180, which is the same meridian.
+   --
+   longitudeE7                 INTEGER (-1799999999..1800000000),
+
+
+      -- Height in decimeters, relative to the vertical reference of the selected coordinate reference system.
+   --
+   altitudeDm                  INTEGER (-4096..32767)              OPTIONAL,
+
+   ...
+}
+
+-- Normative: The coordinate reference system in which a GeographicPosition is expressed. It is more than a geodetic datum,
+-- because some systems deliberately warp the coordinates of a datum, and the warp need not be a simple two-dimensional shift.
+CoordinateReferenceSystem ::= ENUMERATED {
+   wgs84   (0),   -- World Geodetic System 1984; coordinates are not warped.
+
+   gcj02   (1),   -- China GCJ-02, a deliberate shift of latitude and longitude only; altitude is not shifted.
+
+   other   (2),   -- System identified by otherCoordinateSystemId, for example a warped system that also shifts altitude.
+
+   ...
+}
+
+ObserverMotion ::= SEQUENCE {
+   speedCmPerSec           INTEGER (0..65535)        OPTIONAL,   -- Ground speed in centimeters per second.
+
+   -- Heading clockwise from true north in degrees multiplied by 100.
+   --
+   headingDegX100          INTEGER (0..35999)        OPTIONAL,
+
+
+   -- Signed vertical speed in centimeters per second; positive is climbing, negative is descending.
+   --
+   verticalSpeedCmPerSec   INTEGER (-32768..32767)   OPTIONAL,
+
+   ...
+}
+
+
+-- =============================================================================
+-- Observer-provenance definitions.
+-- =============================================================================
+
+
+-- Identifies the capture platform, software, and origin of the native packet bytes.
+--
+ObserverProvenance ::= SEQUENCE {
+   observerId             OCTET STRING (SIZE(1..64))   OPTIONAL,   -- Stable observer-platform ID, if available.
+
+   captureSource          CaptureSource                OPTIONAL,   -- Origin of the associated native packet bytes.
+
+   platformId             OCTET STRING (SIZE(1..64))   OPTIONAL,   -- Producer-defined platform ID.
+
+   hardwareVersion        OCTET STRING (SIZE(1..64))   OPTIONAL,   -- Capture hardware version identifier.
+
+   softwareVersion        OCTET STRING (SIZE(1..64))   OPTIONAL,   -- Capture software version identifier.
+
+   driverOrModemVersion   OCTET STRING (SIZE(1..64))   OPTIONAL,   -- Driver or modem version identifier.
+
+   captureAgent           OCTET STRING (SIZE(1..64))   OPTIONAL,   -- Capture-agent identifier.
+
+   ...
+}
+
+CaptureSource ::= ENUMERATED {
+   overTheAir     (0),   -- Packet bytes were captured from an over-the-air receiver.
+
+   modemExport    (1),   -- Packet bytes were exported by a modem.
+
+   driverExport   (2),   -- Packet bytes were exported by a host driver.
+
+   replay         (3),   -- Packet bytes originated from replay of prior capture data.
+
+   injected       (4),   -- Packet bytes were injected rather than observed natively.
+
+   derived        (5),   -- Packet bytes were derived from other data by the producer.
+
+   ...
+}
+
+
+-- =============================================================================
+-- Antenna-configuration definitions.
+-- =============================================================================
+
+
+-- Lists the receiver antennas installed on the capture platform.
+--
+AntennaSystemConfig ::= SEQUENCE (SIZE(1..4)) OF ReceiverAntennaConfig
+
+-- Normative: OmniTap describes at most four antennas, indexed 0 to 3. The limit is deliberate: raising it needs a new major
+-- release of the profile.
+ReceiverAntennaConfig ::= SEQUENCE {
+   -- Producer-assigned antenna index; transmitAntennaIndex uses the same numbering.
+   --
+   antennaIndex   INTEGER (0..3),
+
+   gainDbiX10     INTEGER (-300..300)          OPTIONAL,   -- Antenna gain in dBi multiplied by 10.
+
+   antennaModel   OCTET STRING (SIZE(1..64))   OPTIONAL,   -- Antenna model or producer-defined identity.
+
+   patternType    OCTET STRING (SIZE(1..32))   OPTIONAL,   -- Producer-defined antenna-pattern identifier.
+
+   ...
+}
+
+
+-- =============================================================================
+-- Radio-observation definitions.
+-- =============================================================================
+
+
+-- Normative: One radio observation serves both directions; the direction of the associated packet comes from epb_flags.
+-- The fields marked receive apply to a received packet and those marked transmit to a transmitted one; a producer SHOULD
+-- omit the fields that do not apply to the packet's direction.
+RadioObservation ::= SEQUENCE {
+
+   -- Receive: per-antenna measurements for the associated packet.
+   --
+   antennaMeasurements              SEQUENCE (SIZE(1..4)) OF AntennaMeasurement   OPTIONAL,
+
+   -- Transmit: antenna used for the associated transmission.
+   --
+   transmitAntennaIndex             INTEGER (0..3)                                OPTIONAL,
+
+   -- Transmit: conducted transmit power in dBm multiplied by 10; it excludes antenna gain.
+   --
+   transmitPowerDbmX10              INTEGER (-2000..300)                          OPTIONAL,
+
+
+   -- Receive: estimated one-way antenna-to-antenna propagation delay in nanoseconds.
+   --
+   estimatedAirPropagationDelayNs   INTEGER (0..50035)                            OPTIONAL,
+
+   -- Either direction: channel load applicable near the packet.
+   --
+   channelLoad                      ChannelLoad                                   OPTIONAL,
+
+   -- Either direction: RF center frequency in kilohertz.
+   --
+   centerFrequencyKHz               INTEGER (0..100000000)                        OPTIONAL,
+
+   -- Either direction: occupied or configured bandwidth in kilohertz.
+   --
+   bandwidthKHz                     INTEGER (1..100000)                           OPTIONAL,
+
+   ...
+}
+
+
+-- Describes measurements made through one indexed receiver antenna.
+--
+AntennaMeasurement ::= SEQUENCE {
+   antennaIndex   INTEGER (0..3),                    -- Receiver antenna index to which this measurement applies.
+
+   rssiDbmX10     INTEGER (-2000..300)   OPTIONAL,   -- RSSI at receiver input in dBm multiplied by 10.
+
+   rsrpDbmX10     INTEGER (-2000..300)   OPTIONAL,   -- RSRP in dBm multiplied by 10.
+
+   rsrqDbX10      INTEGER (-500..300)    OPTIONAL,   -- RSRQ in dB multiplied by 10.
+
+   sinrDbX10      INTEGER (-500..600)    OPTIONAL,   -- SINR in dB multiplied by 10.
+
+   ...
+}
+
+
+-- Describes channel occupancy over an optional measurement window.
+--
+ChannelLoad ::= SEQUENCE {
+   channelLoadKind       ChannelLoadKind,                         -- Semantics of valuePercentX100.
+
+   valuePercentX100      INTEGER (0..10000),                      -- Value as percent multiplied by 100.
+
+   measurementWindowUs   ElapsedTimeUs                OPTIONAL,   -- Integration window in microseconds.
+
+   method                OCTET STRING (SIZE(1..32))   OPTIONAL,   -- Producer-defined measurement method identifier.
+
+   ...
+}
+
+ChannelLoadKind ::= ENUMERATED {
+   channelBusyRatio         (0),   -- Fraction of measurement window assessed busy by the producer.
+
+   channelBusyProbability   (1),   -- Producer-estimated probability that channel is busy.
+
+   channelLoad              (2),   -- Producer-defined channel-load metric described by method.
+
+   ...
+}
+
+END
