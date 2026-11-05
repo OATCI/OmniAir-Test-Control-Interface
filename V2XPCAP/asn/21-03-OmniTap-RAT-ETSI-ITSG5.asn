@@ -1,0 +1,15 @@
+-- OmniTap ETSI ITS-G5 RAT metadata.
+-- Scope: IEEE 802.11p radio access outside the context of a BSS (OCB), as profiled by ETSI EN 302 663.
+-- Normative: The associated EPB SHALL use LINKTYPE_IEEE802_11_RADIOTAP: a standard Radiotap header followed by the
+-- native IEEE 802.11 frame. Radiotap is authoritative for 802.11 PHY and radio information; OmniTap SHALL NOT repeat it.
+-- Normative: An absent OPTIONAL value makes no assertion.
+OmniTap-RAT-ETSI-ITSG5 { 1 3 6 1 4 1 32473 omniTap(1) rat(21) etsiItsG5(3) major-version-1(1) minor-version-0(0) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+EXPORTS ALL;
+
+-- Normative: Intentionally empty in this baseline. Components are added only for information that Radiotap cannot
+-- carry.
+EtsiItsG5Metadata ::= SEQUENCE {
+   ...
+}
+END

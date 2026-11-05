@@ -1,0 +1,137 @@
+-- OmniTap LTE-V2X PC5 RAT metadata.
+-- Normative: An absent OPTIONAL value makes no assertion; the producer either asserts a value or omits it.
+OmniTap-RAT-LTE-V2X { 1 3 6 1 4 1 32473 omniTap(1) rat(21) lteV2x(1) major-version-1(1) minor-version-0(0) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+EXPORTS ALL;
+
+LteV2xMetadata ::= SEQUENCE {
+   sidelinkTiming                    LteSidelinkTiming      OPTIONAL,   -- LTE frame/subframe timing for packet event.
+
+   ltePc5Addressing                  LtePc5Addressing       OPTIONAL,   -- LTE PC5 addressing and priority values.
+
+   receivedSci1                      LteSciFormat1          OPTIONAL,   -- SCI format 1 decoded for a received packet.
+
+   txReservationMode                 SchedulingMode         OPTIONAL,   -- Transmit reservation mode used by producer.
+
+   -- Transmit resource reservation interval in milliseconds.
+   --
+   txResourceReservationIntervalMs   INTEGER (0..1000)      OPTIONAL,
+
+   lteLowerLayerSummary              LteLowerLayerSummary   OPTIONAL,   -- LTE lower-layer packet summary.
+
+   ...
+}
+
+LteSidelinkTiming ::= SEQUENCE {
+   systemFrameNumber   INTEGER (0..1023)   OPTIONAL,   -- LTE system frame number at packet event.
+
+   subframeNumber      INTEGER (0..9)      OPTIONAL,   -- LTE subframe number at packet event.
+
+   ...
+}
+
+LtePc5Addressing ::= SEQUENCE {
+
+   -- Normative: Source Layer-2 ID, always 24 bits, most significant octet first (TS 36.321 clause 6.2.4).
+   --
+   lteSourceLayer2Id        OCTET STRING (SIZE(3))   OPTIONAL,
+
+
+   -- Normative: Destination Layer-2 ID, always 24 bits, most significant octet first (TS 36.321 clause 6.2.4).
+   --
+   lteDestinationLayer2Id   OCTET STRING (SIZE(3))   OPTIONAL,
+
+   pppp                     INTEGER (1..8)           OPTIONAL,   -- ProSe Per-Packet Priority.
+
+   ...
+}
+
+LteSciFormat1 ::= SEQUENCE {
+   rawSciFormat1                   OCTET STRING (SIZE(4))   OPTIONAL,   -- Received SCI format 1 bits, retained verbatim.
+
+   -- Resource reservation interval decoded from SCI, in milliseconds.
+   --
+   resourceReservationIntervalMs   INTEGER (0..1000)        OPTIONAL,
+
+   lteSchedulingMode               SchedulingMode           OPTIONAL,   -- Scheduling mode decoded or asserted by producer.
+
+   startSubchannelIndex            INTEGER (0..255)         OPTIONAL,   -- First scheduled subchannel index.
+
+   priority                        INTEGER (0..7)           OPTIONAL,   -- SCI priority value as signaled.
+
+   -- SCI frequency-resource-assignment field as signaled; interpretation is release-specific.
+   --
+   frequencyResourceAssignment     INTEGER (0..65535)       OPTIONAL,
+
+   timeGap                         INTEGER (0..15)          OPTIONAL,   -- SCI time-gap field as signaled.
+
+   mcs                             INTEGER (0..31)          OPTIONAL,   -- Modulation and coding scheme index as signaled.
+
+   retransmissionIndex             INTEGER (0..3)           OPTIONAL,   -- SCI retransmission index as signaled.
+
+   ...
+}
+
+SchedulingMode ::= ENUMERATED {
+   oneShot          (0),   -- Resource allocation applies to one transmission opportunity.
+
+   semiPersistent   (1),   -- Resource allocation repeats according to its reservation interval.
+
+   ...
+}
+
+LteLowerLayerSummary ::= SEQUENCE {
+
+   -- Number of transport blocks represented; 32 means 32 or more.
+   --
+   transportBlockCount      INTEGER (1..32)      OPTIONAL,
+
+
+   -- Number of RLC segments represented; 65535 means 65535 or more.
+   --
+   rlcSegmentCount          INTEGER (0..65535)   OPTIONAL,
+
+
+   -- TRUE if this packet reflects a HARQ retransmission; FALSE if asserted not retransmitted.
+   --
+   harqRetransmissionUsed   BOOLEAN              OPTIONAL,
+
+
+   -- Total HARQ transmission attempts for the represented block; 32 means 32 or more.
+   --
+   harqTransmissionCount    INTEGER (1..32)      OPTIONAL,
+
+   harqEnabledForTx         BOOLEAN              OPTIONAL,   -- TRUE if HARQ was enabled for the associated transmission.
+
+   ...
+}
+
+LteRrcConfigurationSnapshot ::= SEQUENCE {
+
+   -- 3GPP release governing configurationOctets; omit only when producer cannot identify it.
+   --
+   lteSpecificationRelease   LteRrcVersion                   OPTIONAL,
+
+
+   -- Complete native 3GPP LTE RRC configuration encoding; encoding is defined by 3GPP.
+   --
+   configurationOctets       OCTET STRING (SIZE(1..65536)),
+
+   ...
+}
+
+LteRrcVersion ::= ENUMERATED {
+   r14   (0),   -- 3GPP Release 14.
+
+   r15   (1),   -- 3GPP Release 15.
+
+   r16   (2),   -- 3GPP Release 16.
+
+   r17   (3),   -- 3GPP Release 17.
+
+   r18   (4),   -- 3GPP Release 18.
+
+   ...
+}
+
+END

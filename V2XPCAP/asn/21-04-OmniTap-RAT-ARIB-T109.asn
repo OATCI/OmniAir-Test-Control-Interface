@@ -1,0 +1,19 @@
+-- OmniTap ITS Connect (ARIB STD-T109) RAT metadata.
+-- Scope: ITS Connect, the Japanese V2X system. It is built on the ARIB STD-T109 700 MHz band ITS radio, which uses a
+-- single 760 MHz channel, plus the ITS FORUM RC-010 extended layer. The schema names it aribT109, after the radio standard.
+-- Normative: The associated EPB SHALL contain the native ARIB STD-T109 frame: the 24-octet MAC control field, then
+-- LLC/SNAP, where protocol ID 0x0001 selects the vehicle/roadside control layer. It SHALL NOT be carried in Radiotap or
+-- IEEE 802.11 framing. Its LinkType is pending official assignment; see 00-OmniTap-Registrations.md.
+-- Normative: Times inside ITS Connect messages are Japan Standard Time (UTC+9). They are not the EPB timestamp, which is
+-- always POSIX UTC.
+-- Normative: An absent OPTIONAL value makes no assertion.
+OmniTap-RAT-ARIB-T109 { 1 3 6 1 4 1 32473 omniTap(1) rat(21) aribT109(4) major-version-1(1) minor-version-0(0) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+EXPORTS ALL;
+
+-- Normative: Intentionally empty in this baseline. Components are added only for radio or lower-layer information that
+-- the native ARIB STD-T109 frame does not carry.
+AribT109Metadata ::= SEQUENCE {
+   ...
+}
+END

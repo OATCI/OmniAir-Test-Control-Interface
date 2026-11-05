@@ -1,0 +1,152 @@
+-- OmniTap top-level object envelope for a COER payload in a PEN-owned pcapng Custom Block or EPB Custom Binary Option.
+--
+-- The production OmniTap Custom Block PEN has not yet been assigned. PEN 32473 (RFC 5612) is a documentation placeholder
+-- and SHALL NOT be presented as an IANA-assigned or production PEN; see 00-OmniTap-Registrations.md.
+--
+-- The payload SHALL be COER(OmniTapObject) as specified in ITU-T X.696 (Canonical Octet Encoding Rules).
+-- Because every COER encoding is also a valid Basic OER encoding, any standard OER or COER decoder can decode it.
+--
+OmniTap-Objects { 1 3 6 1 4 1 32473 omniTap(1) objects(0) major-version-1(1) minor-version-0(0) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+EXPORTS ALL;
+
+IMPORTS
+
+   CaptureSessionId
+      FROM OmniTap-Common
+
+   OmniTapInterfaceContext
+      FROM OmniTap-Interface-Context
+
+   OmniTapPacketMetadata
+      FROM OmniTap-Packet-Metadata
+
+   OmniTapSupplementalResult
+      FROM OmniTap-Supplemental-Result
+
+   OptionalExtensions
+      FROM OmniTap-Extensions
+;
+
+
+-- =============================================================================
+-- Top-level object envelope.
+-- =============================================================================
+
+
+-- Carries one versioned OmniTap object in a pcapng Custom Block (0x00000BAD) or EPB Custom Binary Option 2989 (0x0BAD).
+--
+-- profileVersion is the first component so that, in COER/OER, the version is always in the first four octets of the
+-- payload: one preamble octet for OmniTapObject (0x00 when no extension addition is present), one preamble octet for
+-- OmniTapProfileVersion (0x00), then major and minor as one unsigned octet each, followed by the one-octet
+-- OmniTapObjectBody CHOICE tag (0x80..0x83 for the four root alternatives). Future major releases SHALL keep this
+-- prefix unchanged so that any reader can read the version before decoding the body.
+--
+-- Cost: 4 octets before the body CHOICE tag in every OmniTap object.
+--
+OmniTapObject ::= SEQUENCE {
+
+   profileVersion      OmniTapProfileVersion,              -- The profile release used to write this object.
+
+   body                OmniTapObjectBody,                   -- The OmniTap object carried by this payload.
+
+   ...
+}
+
+
+-- =============================================================================
+-- Supporting object definitions.
+-- =============================================================================
+
+
+-- Identifies the OmniAir OmniTap profile release that the producer used to write a block.
+--
+-- This version identifies the published OmniTap release as a whole, not an individual module. Module OIDs carry their
+-- own version arcs. A minor release only adds content behind existing ASN.1 extension markers, so a reader of an older
+-- minor release of the same major release can still decode the block and skip content it does not know. A major release
+-- may change the encoding. A reader SHALL NOT decode the body of a block whose major release it does not implement and
+-- SHOULD report that block as unsupported.
+--
+OmniTapProfileVersion ::= SEQUENCE {
+
+   major               INTEGER (1..255),                    -- The major release. This specification is release 1.
+
+   minor               INTEGER (0..255),                    -- The minor release. This specification is release 1.0.
+
+   ...
+}
+
+
+-- Selects the kind of OmniTap object carried in the payload.
+--
+-- Capture Context, Interface Context, and Supplemental Result are always carried in standalone copyable pcapng Custom
+-- Blocks (block type 0x00000BAD). Packet Metadata is carried inside its associated EPB as a copyable Custom Binary
+-- Option (option code 2989 / 0x0BAD) in standard OmniTap (Native) streams, or in a standalone copyable Custom Block
+-- (0x00000BAD) in OmniTap-Lua compatibility streams for stock Wireshark installations using only the Lua dissector.
+-- Both stream flavors carry the exact same COER(OmniTapObject) bytes and are losslessly convertible with
+-- scripts/OmniLuazer.py.
+--
+-- Standard pcapng remains authoritative for facts it already represents: the EPB carries the packet timestamp,
+-- captured and original lengths, native packet bytes, packet direction and link-layer error flags; the EPB Interface ID
+-- selects the IDB; and the IDB carries the LinkType, interface name, and timestamp resolution. OmniTap SHALL NOT replace
+-- or contradict those values.
+--
+OmniTapObjectBody ::= CHOICE {
+
+   capture             OmniTapCaptureContext,              -- Session context carried in an OmniTap Custom Block.
+
+   interfaceContext    OmniTapInterfaceContext,            -- Interface context carried in an OmniTap Custom Block.
+
+   packetMetadata      OmniTapPacketMetadata,              -- Metadata for one associated EPB (Option 2989 or Custom Block).
+
+   supplementalResult  OmniTapSupplementalResult,          -- A later Custom-Block result for one associated EPB.
+
+   ...
+}
+
+
+-- =============================================================================
+-- Capture-context definitions.
+-- =============================================================================
+
+
+-- Describes a capture session and its optional test context.
+--
+-- A producer SHALL write the Capture Context at the start of every file of a capture session, including the first file
+-- and any file started later, for example when a ring buffer rotates, before any EPB. Readers SHALL treat an exact
+-- repeat of an earlier Capture Context as the same context. See 10-OmniTap-Interface-Context.asn for Interface Context.
+--
+OmniTapCaptureContext ::= SEQUENCE {
+
+   sessionId            CaptureSessionId,                            -- The 128-bit capture-session identity.
+
+
+   -- Present when the producer provides a campaign or collection description.
+   -- Absence means that no campaign or collection description is asserted.
+   --
+   testCampaignDetails  UTF8String (SIZE(1..255))          OPTIONAL, -- The campaign or collection description.
+
+
+   -- Present when the producer associates the capture with a test-case identifier.
+   -- Absence means that no test-case identifier is asserted.
+   --
+   testCaseId           UTF8String (SIZE(1..64))           OPTIONAL, -- The producer-defined test-case identifier.
+
+
+   -- Present when the producer associates the capture with a scenario name.
+   -- Absence means that no scenario name is asserted.
+   --
+   scenarioName         UTF8String (SIZE(1..255))          OPTIONAL, -- The human-readable scenario name.
+
+
+   -- Present when regional or third-party capture-session information is provided.
+   -- Absence means that no extension information is provided for the capture session.
+   --
+   optionalExtensions   OptionalExtensions                 OPTIONAL, -- Regional or third-party session information.
+
+   ...
+}
+
+END
+

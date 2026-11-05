@@ -1,0 +1,378 @@
+-- OmniTap NR-V2X PC5 RAT metadata.
+-- Normative: An absent OPTIONAL value makes no assertion; the producer either asserts a value or omits it.
+OmniTap-RAT-NR-V2X { 1 3 6 1 4 1 32473 omniTap(1) rat(21) nrV2x(2) major-version-1(1) minor-version-0(0) }
+DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+EXPORTS ALL;
+
+NrV2xMetadata ::= SEQUENCE {
+   nrSidelinkTiming                NrSidelinkTiming            OPTIONAL,   -- NR frame/slot timing and subchannel allocation.
+   nrPc5Addressing                 NrPc5Addressing             OPTIONAL,   -- NR PC5 Layer-2 addressing values.
+
+   nrSchedulingMode                NrSchedulingMode            OPTIONAL,   -- Scheduling mode used for associated packet.
+
+   -- Resource reservation interval in milliseconds.
+   --
+   resourceReservationIntervalMs   INTEGER (0..1000)           OPTIONAL,
+
+   sciStage1                       NrSciStage1                 OPTIONAL,   -- 1st-stage SCI (SCI format 1-A) on PSCCH.
+
+   sciStage2                       NrSciStage2                 OPTIONAL,   -- 2nd-stage SCI (SCI format 2-A/2-B/2-C) on PSSCH.
+
+   psfchFeedback                   NrPsfchFeedbackSummary      OPTIONAL,   -- PSFCH HARQ feedback summary for associated packet.
+
+   mode2TxDiagnostics              NrMode2TxDiagnostics        OPTIONAL,   -- Mode 2 autonomous resource selection diagnostics.
+   nrLowerLayerSummary             NrLowerLayerSummary         OPTIONAL,   -- NR lower-layer packet summary.
+
+   ...
+}
+
+
+-- =============================================================================
+-- NR sidelink timing and frequency-allocation definitions.
+-- =============================================================================
+
+
+-- Describes NR sidelink frame/slot timing, numerology, and subchannel allocation at the packet event.
+--
+NrSidelinkTiming ::= SEQUENCE {
+
+   -- NR Direct Frame Number (DFN) or System Frame Number (SFN) at the packet event (TS 38.211 clause 4.3).
+   --
+   directFrameNumber          INTEGER (0..1023)           OPTIONAL,
+
+
+   -- Slot index within the 10 ms frame at the packet event, up to 160 slots per frame at 240 kHz SCS.
+   --
+   slotIndex                  INTEGER (0..159)            OPTIONAL,
+
+   subcarrierSpacing          NrSubcarrierSpacing         OPTIONAL,   -- Sidelink BWP subcarrier spacing numerology.
+
+   -- Lowest subchannel index allocated to the associated PSSCH/PSCCH transmission (TS 38.214 clause 8.1.2.2).
+   --
+   nrStartSubchannelIndex     INTEGER (0..255)            OPTIONAL,
+
+
+   -- Number of contiguously allocated subchannels for the associated PSSCH transmission (TS 38.214 clause 8.1.5).
+   --
+   allocatedSubchannelCount   INTEGER (1..255)            OPTIONAL,
+   ...
+}
+
+NrSubcarrierSpacing ::= ENUMERATED {
+   scs15kHz    (0),   -- 15 kHz subcarrier spacing (mu = 0, 10 slots per frame).
+
+   scs30kHz    (1),   -- 30 kHz subcarrier spacing (mu = 1, 20 slots per frame).
+
+   scs60kHz    (2),   -- 60 kHz subcarrier spacing (mu = 2, 40 slots per frame).
+
+   scs120kHz   (3),   -- 120 kHz subcarrier spacing (mu = 3, 80 slots per frame).
+
+   scs240kHz   (4),   -- 240 kHz subcarrier spacing (mu = 4, 160 slots per frame).
+   ...
+}
+
+
+-- =============================================================================
+-- NR PC5 addressing and scheduling definitions.
+-- =============================================================================
+
+
+NrPc5Addressing ::= SEQUENCE {
+
+   -- Normative: Source Layer-2 ID, always 24 bits, most significant octet first (TS 38.321 clause 6.2.3).
+   --
+   nrSourceLayer2Id        OCTET STRING (SIZE(3))   OPTIONAL,
+
+
+   -- Normative: Destination Layer-2 ID, always 24 bits, most significant octet first (TS 38.321 clause 6.2.3).
+   --
+   nrDestinationLayer2Id   OCTET STRING (SIZE(3))   OPTIONAL,
+
+   -- L1 priority (1..8) where 1 is highest priority and 8 is lowest priority (TS 38.321 clause 5.22.1.3.1).
+   --
+   nrL1Priority            INTEGER (1..8)           OPTIONAL,
+   ...
+}
+
+NrSchedulingMode ::= ENUMERATED {
+   oneShot          (0),   -- Resource allocation applies to one transmission opportunity.
+
+   semiPersistent   (1),   -- Resource allocation repeats according to its reservation interval.
+
+   ...
+}
+
+
+-- =============================================================================
+-- 1st-stage and 2nd-stage SCI definitions.
+-- =============================================================================
+
+
+-- Describes 1st-stage Sidelink Control Information (SCI format 1-A on PSCCH, TS 38.212 clause 8.3.1.1).
+--
+NrSciStage1 ::= SEQUENCE {
+
+   -- Raw 1st-stage SCI payload bits prior to CRC attachment, retained verbatim.
+   --
+   rawSciStage1                    OCTET STRING (SIZE(1..16))   OPTIONAL,
+
+
+   -- 3-bit SCI Priority field as signaled (0..7); '000' (0) corresponds to L1 priority value 1 (TS 38.212 clause 8.3.1.1).
+   --
+   nrSciPriority                   INTEGER (0..7)               OPTIONAL,
+
+
+   -- Frequency resource assignment (FRIV) as signaled (TS 38.212 clause 8.3.1.1, TS 38.214 clause 8.1.5).
+   --
+   nrFrequencyResourceAssignment   INTEGER (0..65535)           OPTIONAL,
+
+
+   -- Time resource assignment (TRIV) as signaled, 5 or 9 bits depending on sl-MaxNumPerReserve (TS 38.214 clause 8.1.5).
+   --
+   nrTimeResourceAssignment        INTEGER (0..511)             OPTIONAL,
+
+
+   -- Resource reservation period decoded from SCI format 1-A, in milliseconds (TS 38.213 clause 16.4).
+   --
+   nrResourceReservationPeriodMs   INTEGER (0..1000)            OPTIONAL,
+
+
+   -- 2nd-stage SCI format indicated by SCI format 1-A (TS 38.212 Table 8.3.1.1-1).
+   --
+   sciStage2Format                 NrSciStage2Format            OPTIONAL,
+
+   nrBetaOffsetIndicator           INTEGER (0..3)               OPTIONAL,   -- 2-bit Beta_offset indicator (TS 38.212).
+
+   -- Number of DMRS ports indicated by SCI format 1-A: 1 (port 1000) or 2 (ports 1000 and 1001).
+   --
+   dmrsPortCount                   INTEGER (1..2)               OPTIONAL,
+
+   nrMcs                           INTEGER (0..31)              OPTIONAL,   -- 5-bit MCS index as signaled (TS 38.214).
+
+   -- Additional MCS table indicator (0..3) when sl-Additional-MCS-Table is configured (TS 38.214 clause 8.1.3.1).
+   --
+   additionalMcsTableIndicator     INTEGER (0..3)               OPTIONAL,
+
+
+   -- PSFCH overhead indication from SCI format 1-A: TRUE indicates 3 symbols are reserved for PSFCH in the slot
+   -- when sl-PSFCH-Period is 2 or 4 (TS 38.212 clause 8.3.1.1, TS 38.214 clause 8.1.3.2).
+   --
+   psfchOverheadIndication         BOOLEAN                      OPTIONAL,
+
+   ...
+}
+
+NrSciStage2Format ::= ENUMERATED {
+   sciFormat2A   (0),   -- SCI format 2-A: broadcast, unicast, or groupcast with ACK/NACK or NACK-only (TS 38.212 8.4.1.1).
+
+   sciFormat2B   (1),   -- SCI format 2-B: distance-based groupcast with NACK-only feedback (TS 38.212 8.4.1.2).
+
+   sciFormat2C   (2),   -- SCI format 2-C: unicast with inter-UE coordination providing or requesting (TS 38.212 8.4.1.3).
+
+   sciFormat2D   (3),   -- SCI format 2-D: PSSCH decoding and shared SL-PRS scheduling (TS 38.212 8.4.1.4).
+
+   ...
+}
+
+
+-- Describes 2nd-stage Sidelink Control Information on PSSCH (SCI formats 2-A, 2-B, and 2-C, TS 38.212 clause 8.4.1).
+--
+NrSciStage2 ::= SEQUENCE {
+
+   -- Raw 2nd-stage SCI payload bits prior to CRC attachment, retained verbatim.
+   --
+   rawSciStage2                      OCTET STRING (SIZE(1..16))   OPTIONAL,
+
+   harqProcessNumber                 INTEGER (0..15)              OPTIONAL,   -- 4-bit sidelink HARQ process number.
+
+   newDataIndicator                  BOOLEAN                      OPTIONAL,   -- 1-bit New Data Indicator (NDI).
+
+   redundancyVersion                 INTEGER (0..3)               OPTIONAL,   -- 2-bit Redundancy Version (RV).
+
+   -- 8-bit Layer-1 Source ID (8 LSBs of the 24-bit Source Layer-2 ID, TS 38.214 clause 8.1).
+   --
+   sourceIdL1                        INTEGER (0..255)             OPTIONAL,
+
+
+   -- 16-bit Layer-1 Destination ID (16 LSBs of the 24-bit Destination Layer-2 ID, TS 38.214 clause 8.1).
+   --
+   destinationIdL1                   INTEGER (0..65535)           OPTIONAL,
+
+
+   -- HARQ feedback enabled/disabled indicator in 2nd-stage SCI (TS 38.213 clause 16.3).
+   --
+   harqFeedbackEnabled               BOOLEAN                      OPTIONAL,
+
+
+   -- Cast type and groupcast HARQ mode indicated by SCI format 2-A or implied by SCI format 2-B/2-C.
+   --
+   castType                          NrCastType                   OPTIONAL,
+
+   csiRequest                        BOOLEAN                      OPTIONAL,   -- 1-bit sidelink CSI request indicator.
+
+   -- 12-bit Zone ID in SCI format 2-B for Groupcast Option 1 distance-based NACK-only feedback (TS 38.331 clause 5.8.11).
+   --
+   zoneId                            INTEGER (0..4095)            OPTIONAL,
+
+
+   -- 4-bit Communication range requirement index in SCI format 2-B (sl-ZoneConfigMCR-Index, TS 38.212 clause 8.4.1.2).
+   --
+   communicationRangeIndex           INTEGER (0..15)              OPTIONAL,
+
+
+   -- Decoded minimum communication range requirement in meters corresponding to communicationRangeIndex.
+   --
+   communicationRangeRequirementM    INTEGER (1..65535)           OPTIONAL,
+
+   ...
+}
+
+NrCastType ::= ENUMERATED {
+   broadcast           (0),   -- Broadcast transmission (SCI format 2-A cast type '00').
+
+   groupcastAckNack    (1),   -- Groupcast Option 2: per-member ACK or NACK feedback on PSFCH (SCI format 2-A '01').
+
+   unicast             (2),   -- Unicast transmission (SCI format 2-A '10' or SCI format 2-C).
+
+   groupcastNackOnly   (3),   -- Groupcast Option 1: shared NACK-only feedback on PSFCH (SCI format 2-A '11' or format 2-B).
+
+   ...
+}
+
+
+-- =============================================================================
+-- PSFCH feedback and Mode 2 resource-selection diagnostics.
+-- =============================================================================
+
+
+-- Summarizes Physical Sidelink Feedback Channel (PSFCH, TS 38.211 clause 8.3.4, TS 38.213 clause 16.3) outcome.
+--
+NrPsfchFeedbackSummary ::= SEQUENCE {
+   psfchOutcome      NrPsfchOutcome    OPTIONAL,   -- Observed or transmitted PSFCH HARQ feedback outcome.
+
+   -- Slot offset (K_PSFCH) in physical slots from the PSSCH slot to the associated PSFCH feedback slot.
+   --
+   psfchSlotOffset   INTEGER (0..63)   OPTIONAL,
+
+   ...
+}
+
+NrPsfchOutcome ::= ENUMERATED {
+   ack                    (0),   -- Positive HARQ acknowledgment (ACK) transmitted or received on PSFCH.
+
+   nack                   (1),   -- Negative HARQ acknowledgment (NACK) transmitted or received on PSFCH.
+
+   dtxNoFeedback          (2),   -- No PSFCH signal detected (DTX) or NACK suppressed (e.g., Groupcast Option 1 pass).
+
+   outOfZoneRange         (3),   -- Groupcast Option 1 NACK suppressed because RX UE exceeded communicationRangeRequirementM.
+
+   droppedByPriority      (4),   -- PSFCH transmission dropped due to UL/SL prioritization or simultaneous PSFCH limit.
+
+   ...
+}
+
+
+-- Summarizes NR Mode 2 autonomous resource-selection diagnostics (TS 38.214 clause 8.1.4 and clause 8.1.6).
+--
+NrMode2TxDiagnostics ::= SEQUENCE {
+
+   -- Final RSRP exclusion threshold in dBm reached at Step 7 of TS 38.214 clause 8.1.4.
+   --
+   finalRsrpThresholdDbm              INTEGER (-128..0)     OPTIONAL,
+
+
+   -- Total RSRP threshold relaxation applied in Step 7 (3 dB per iteration), in dB.
+   --
+   rsrpThresholdRelaxationDb          INTEGER (0..63)       OPTIONAL,
+
+
+   -- Total candidate single-slot or multi-slot resources in the selection window (M_total in TS 38.214 clause 8.1.4).
+   --
+   totalCandidateResources            INTEGER (1..65535)    OPTIONAL,
+
+
+   -- Remaining candidate resources in set S_A after sensing exclusions.
+   --
+   remainingCandidateResources        INTEGER (0..65535)    OPTIONAL,
+
+
+   -- TRUE if the transmitted resource was reselected due to Mode 2 re-evaluation prior to transmission.
+   --
+   reEvaluationReselected             BOOLEAN               OPTIONAL,
+
+
+   -- TRUE if the transmitted resource was reselected due to Mode 2 pre-emption by a higher-priority reservation.
+   --
+   preEmptionReselected               BOOLEAN               OPTIONAL,
+
+
+   -- Sidelink resource reselection counter (SL_RESOURCE_RESELECTION_COUNTER in TS 38.321 clause 5.22.1.2).
+   --
+   reselectionCounter                 INTEGER (0..150)      OPTIONAL,
+
+
+   -- Evaluated Channel Occupancy Ratio (CR) as percent multiplied by 100 (TS 38.214 clause 8.1.6).
+   --
+   channelOccupancyRatioPercentX100   INTEGER (0..10000)    OPTIONAL,
+
+   ...
+}
+
+
+-- =============================================================================
+-- NR lower-layer summary and RRC configuration snapshot.
+-- =============================================================================
+
+
+NrLowerLayerSummary ::= SEQUENCE {
+
+   -- Number of transport blocks represented; 32 means 32 or more.
+   --
+   transportBlockCount      INTEGER (1..32)      OPTIONAL,
+
+
+   -- Number of RLC segments represented; 65535 means 65535 or more.
+   --
+   rlcSegmentCount          INTEGER (0..65535)   OPTIONAL,
+
+
+   -- TRUE if this packet reflects a HARQ retransmission; FALSE if asserted not retransmitted.
+   --
+   harqRetransmissionUsed   BOOLEAN              OPTIONAL,
+
+
+   -- Total HARQ transmission attempts for represented block; 32 means 32 or more.
+   --
+   harqTransmissionCount    INTEGER (1..32)      OPTIONAL,
+
+   harqEnabledForTx         BOOLEAN              OPTIONAL,   -- TRUE if HARQ was enabled for associated transmission.
+
+   ...
+}
+
+NrRrcConfigurationSnapshot ::= SEQUENCE {
+
+   -- 3GPP release governing configurationOctets; omit only when producer cannot identify it.
+   --
+   nrSpecificationRelease   NrRrcVersion                    OPTIONAL,
+
+
+   -- Complete native 3GPP NR RRC configuration encoding; encoding is defined by 3GPP.
+   --
+   configurationOctets      OCTET STRING (SIZE(1..65536)),
+
+   ...
+}
+
+NrRrcVersion ::= ENUMERATED {
+   r16   (0),   -- 3GPP Release 16.
+
+   r17   (1),   -- 3GPP Release 17.
+
+   r18   (2),   -- 3GPP Release 18.
+
+   ...
+}
+
+END
+

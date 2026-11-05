@@ -1,0 +1,8 @@
+# OmniAir OmniTap Wireshark asn2wrs Conformance File (OER / COER)
+#.OPT
+OER
+#.END
+
+#.PDU
+OmniTapObject
+#.END

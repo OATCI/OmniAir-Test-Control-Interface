@@ -1,0 +1,24 @@
+# OmniTap V2XPCAP — Ignored internal, third-party, and temporary files
+#
+# Everything NOT ignored here is part of the public OmniAir OmniTap specification,
+# schema (*.asn), reference dissectors (dissector/), producer C header (include/),
+# tooling (scripts/), and reference sample captures (samples/).
+
+# Private editorial validation, reference materials, and scratch directories
+internal/
+reference/
+_proto/
+omnitap.a1sproj
+# Downloaded third-party Wireshark asn2wrs helpers (fetched by scripts/OmniTap-Setup.py)
+tools/
+
+# Python, asn2wrs, and IDE caches / scratch files
+__pycache__/
+*.py[cod]
+parsetab.py
+/packet-omnitap-*.c
+/packet-omnitap-*.h
+/omnitap-exp.cnf
+.continue/
+.vscode/
+
